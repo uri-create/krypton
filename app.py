@@ -202,6 +202,13 @@ def great_circle(lat1, lon1, lat2, lon2, steps=40):
 # ===========================================================================
 if MISCONFIGURED:  # online without the real database: lock everything (see storage.py)
     st.error("🔧 Krypton is being set up and will be back shortly.")
+    # For the owner: which secret NAMES the website can see (never their values), to fix setup mistakes
+    try:
+        names = sorted(st.secrets.keys())
+        st.caption(f"Setup check: secrets found: {', '.join(names) or 'none'}. Needed: DATABASE_URL.")
+    except Exception:
+        st.caption("Setup check: the Secrets box couldn't be read. Check its formatting "
+                   '(each line like NAME = "value", with straight quotes).')
     st.stop()
 user = login_gate()
 
