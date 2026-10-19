@@ -26,6 +26,7 @@ from globe import krypton_globe, to_event_id
 from markets import SECTORS
 from tabs_extra import alerts_tab, analyst_tab, briefing_tab, portfolio_tab, track_record_tab
 from auth_ui import account_tab, login_gate
+from storage import MISCONFIGURED
 from panels import (SEVERITY, chokepoint_severity, conflict_severity, disaster_severity, hub_severity,
                     line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
                     render_rough, rough_severity)
@@ -199,6 +200,9 @@ def great_circle(lat1, lon1, lat2, lon2, steps=40):
 # ===========================================================================
 # LOG IN (nothing below this runs until someone is logged in)
 # ===========================================================================
+if MISCONFIGURED:  # online without the real database: lock everything (see storage.py)
+    st.error("🔧 Krypton is being set up and will be back shortly.")
+    st.stop()
 user = login_gate()
 
 # ===========================================================================

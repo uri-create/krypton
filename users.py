@@ -18,7 +18,7 @@ import bcrypt
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
-from storage import UserStore, count_recent_signups, engine, now_text, record_signup, users
+from storage import MISCONFIGURED, UserStore, count_recent_signups, engine, now_text, record_signup, users
 
 MAX_FAILED_LOGINS = 5
 LOCK_MINUTES = 5
@@ -51,6 +51,8 @@ def create_account(username, password, ip=None):
     problem = validate_new_account(username, password)
     if problem:
         return None, problem
+    if MISCONFIGURED:  # never let anyone sign up (and become admin) on a temporary database
+        return None, "Krypton is being set up. Sign-ups are closed for a moment."
     if ip and count_recent_signups(60, ip) >= SIGNUPS_PER_IP_PER_HOUR:
         return None, "Too many new accounts from your connection. Try again in an hour."
     if count_recent_signups(60) >= SIGNUPS_PER_HOUR_TOTAL:

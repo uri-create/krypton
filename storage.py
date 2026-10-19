@@ -36,9 +36,17 @@ def get_secret(name):
         return None
 
 
+# Streamlit Community Cloud runs apps from /mount/src/. There, the local-file fallback would be an
+# EMPTY, TEMPORARY database (wiped on every restart, and the first sign-up would become admin).
+ONLINE = os.path.abspath(__file__).replace("\\", "/").startswith("/mount/src/")
+MISCONFIGURED = ONLINE and not get_secret("DATABASE_URL")  # online but the real database isn't set up
+
+
 def _database_url():
     """DATABASE_URL from the environment or Streamlit secrets, else the local file."""
     url = get_secret("DATABASE_URL")
+    if MISCONFIGURED:
+        return "sqlite://"  # throw-away in-memory database; the app refuses to run anyway (see app.py)
     if url:
         # Neon/Supabase give "postgres://..." or "postgresql://..."; tell SQLAlchemy to use psycopg 3
         return url.replace("postgres://", "postgresql+psycopg://", 1).replace(
