@@ -57,6 +57,21 @@ def bullets(items):
     st.markdown("\n".join(f"- {item}" for item in items) if items else "_Nothing to report._")
 
 
+def stat_cards(cards, per_row=2):
+    """Number cards that explain themselves: a short heading, the big number, an optional
+    change pill, and one plain-English line saying what the number means.
+    cards = [{"label": ..., "value": ..., "explain": ..., "delta": ..., "tone": "bad"/"good"/None}, ...]"""
+    for start in range(0, len(cards), per_row):
+        for column, card in zip(st.columns(per_row), cards[start:start + per_row]):
+            delta = ""
+            if card.get("delta"):
+                delta = f"<span class='stat-delta {card.get('tone') or ''}'>{html.escape(str(card['delta']))}</span>"
+            column.markdown(
+                f"<div class='stat'><div class='stat-label'>{html.escape(str(card['label']))}</div>"
+                f"<div class='stat-value'>{html.escape(str(card['value']))}</div>{delta}"
+                f"<div class='stat-explain'>{card['explain']}</div></div>", unsafe_allow_html=True)
+
+
 def chart_key(prefix):
     """Streamlit needs every chart to have its own ID. A counter (reset at the top of app.py on
     every run) gives each chart a unique, stable one."""
@@ -64,8 +79,9 @@ def chart_key(prefix):
     return f"{prefix}_{st.session_state['_chart_n']}"
 
 
-def line_chart(series, title, y_label, colour=CYAN, marker=None, marker_label=None, bars=False, height=230):
-    """A clean single-line (or single-bar) chart with a clear title."""
+def line_chart(series, title, y_label, colour=CYAN, marker=None, marker_label=None, bars=False, height=230,
+               explain=None):
+    """A clean single-line (or single-bar) chart with a clear title, and a line saying what it shows."""
     series = series.dropna()
     if series.empty:
         st.caption(f"{title}: no data yet.")
@@ -85,6 +101,8 @@ def line_chart(series, title, y_label, colour=CYAN, marker=None, marker_label=No
         xaxis=dict(gridcolor=GRID), yaxis=dict(title=y_label, gridcolor=GRID),
     )
     st.plotly_chart(figure, width="stretch", key=chart_key("line"))
+    if explain:
+        st.caption(f"ⓘ {explain}")
 
 
 PIE_COLOURS = ["#ff2a3d", "#ffb000", "#4da3ff", "#3ddc84", "#c77dff", "#ff7aa2", "#00d1c1", "#d4a017", "#9a9aa4"]
@@ -109,7 +127,7 @@ def pie_chart(labels, values, title, height=330, colours=None, note=None):
                          font=dict(family="Inter, sans-serif"))
     st.plotly_chart(figure, width="stretch", key=chart_key("pie"))
     if note:
-        st.caption(note)
+        st.caption(f"ⓘ {note}")
 
 
 def news_bullets(headlines, limit=10):
@@ -127,7 +145,8 @@ def news_themes(headlines):
     if not causes:
         st.caption("No clear theme in the latest headlines.")
         return causes
-    pie_chart([c for c, _ in causes], [len(e) for _, e in causes], "What the latest headlines are about")
+    pie_chart([c for c, _ in causes], [len(e) for _, e in causes], "What the latest headlines are about",
+              note="Krypton sorts the latest news headlines by topic. A bigger slice = more headlines about that topic.")
     for cause, evidence in causes[:3]:
         st.markdown(f"**{cause}** ({len(evidence)} of {len(headlines)} headlines), for example:")
         news_bullets(evidence, 3)
@@ -254,7 +273,9 @@ def render_impacts(impacts, prices, changes, since=None, since_label="this month
                           key=f"impact_chart_{since}_{impacts[0][0]}")
     if choice in prices:
         line_chart(prices[choice], f"{choice}: daily price, last 12 months", "Price",
-                   marker=since, marker_label="event start" if since is not None else None)
+                   marker=since, marker_label="event start" if since is not None else None,
+                   explain="The price at the end of each trading day over the last year."
+                           + (" The dashed line marks when this event started." if since is not None else ""))
 
 
 def track_record_note(rule):
@@ -344,25 +365,40 @@ def render_chokepoint(name, s, traffic, prices, changes, headlines, disasters, w
             text = "ships are passing normally."
         bottom_line(f"{name}: {text}", severity)
 
-        c1, c2 = st.columns(2)
-        c3, c4 = st.columns(2)
-        c1.metric("Ships/day (this week)", f"{s['Ships/day (last 7 days)']:.0f}",
-                  f"{s['Change vs a year ago (%)']:+d}% vs year ago" if s["Change vs a year ago (%)"] is not None else None)
-        c2.metric("Last 3 months avg", f"{s['Ships/day (last 3 months)']:.0f}")
-        c3.metric("A year ago", f"{s['Ships/day (a year ago)']:.0f}" if s["Ships/day (a year ago)"] else "n/a")
-        c4.metric("Drop began", f"{drop:%d %b %Y}" if drop is not None else "No drop")
+        subtitle("🚢 Ship traffic in numbers")
+        year_change = s["Change vs a year ago (%)"]
+        stat_cards([
+            {"label": "Ships per day · this week", "value": f"{s['Ships/day (last 7 days)']:.0f}",
+             "delta": f"{year_change:+d}% vs a year ago" if year_change is not None else None,
+             "tone": "bad" if (year_change or 0) < 0 else "good",
+             "explain": f"Average number of ships passing through {name} each day over the last 7 days."},
+            {"label": "Normal level · last 3 months", "value": f"{s['Ships/day (last 3 months)']:.0f}",
+             "explain": "Average ships per day over the past 3 months: what 'normal' has looked like recently."},
+            {"label": "Ships per day · a year ago",
+             "value": f"{s['Ships/day (a year ago)']:.0f}" if s["Ships/day (a year ago)"] else "n/a",
+             "explain": "The same week last year, to compare with the usual level for this time of year."},
+            {"label": "When the drop began", "value": f"{drop:%d %b %Y}" if drop is not None else "No drop",
+             "explain": "The first day traffic fell clearly below normal." if drop is not None
+             else "Traffic hasn't fallen clearly below normal."},
+        ])
 
         line_chart(smooth, f"Ships passing through {name} per day (7-day average)", "Ships per day",
-                   marker=drop, marker_label="drop began")
+                   marker=drop, marker_label="drop began",
+                   explain="Each point is the average number of ships per day over the week before it. "
+                           "A line that falls and stays low means ships are avoiding the route."
+                           + (" The dashed line marks when the drop began." if drop is not None else ""))
 
         kinds = ["tankers", "container ships", "bulk carriers"]
         p1, p2 = st.columns(2)
         with p1:
-            pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-7:].mean().values), "Ship types: this week")
+            pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-7:].mean().values), "Ship types: this week",
+                      note="The mix of ships passing this week: tankers carry oil & gas, container ships carry "
+                           "goods, bulk carriers carry grain, coal and ore.")
         with p2:
             if len(daily) >= 372:
                 pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-372:-365].mean().values),
-                          "Ship types: a year ago")
+                          "Ship types: a year ago",
+                          note="The same mix a year ago. Compare the two to see which kind of ship is staying away.")
 
         subtitle("🌦️ Weather & sea right now")
         st.markdown(describe_weather(weather))
@@ -446,16 +482,22 @@ def render_hub(name, air, air_history, weather, headlines, prices, changes, conf
 
         past = air_history.get(name)
         ground = (air or {}).get("counts", {}).get(name, {}).get("on_ground")
-        c1, c2 = st.columns(2)
-        c3, c4 = st.columns(2)
-        c1.metric("Aircraft nearby now", count if count is not None else "n/a")
-        c2.metric("Usual (avg of snapshots)", f"{past['average']:.0f}" if past else "learning")
-        c3.metric("On the ground", ground if ground is not None else "n/a")
-        c4.metric("Wind gusts", f"{weather['gusts']:.0f} km/h" if weather and weather.get("gusts") is not None else "n/a")
+        subtitle("✈️ Air traffic in numbers")
+        stat_cards([
+            {"label": "Aircraft nearby · right now", "value": count if count is not None else "n/a",
+             "explain": f"Planes tracked within 150 km of {name} in the latest live check."},
+            {"label": "Usual number", "value": f"{past['average']:.0f}" if past else "learning",
+             "explain": "The average of all saved checks at this time of day. 'learning' = not enough days saved yet."},
+            {"label": "Aircraft on the ground", "value": ground if ground is not None else "n/a",
+             "explain": "Planes parked or taxiing at the airport in the latest live check."},
+            {"label": "Wind gusts · right now",
+             "value": f"{weather['gusts']:.0f} km/h" if weather and weather.get("gusts") is not None else "n/a",
+             "explain": "The strongest bursts of wind at the airport. Above about 60 km/h, flights can be delayed."},
+        ])
 
-        line_chart(get_air_series(name), f"Aircraft within 150 km of {name} (each saved snapshot)", "Aircraft",
-                   height=210)
-        st.caption("A new snapshot is saved each time Krypton refreshes (about every 15 minutes while open).")
+        line_chart(get_air_series(name), f"Aircraft within 150 km of {name} (each saved check)", "Aircraft",
+                   height=210, explain="Each point is one saved live count of planes near the airport (a new one about "
+                                       "every 15 minutes). Sudden dips can mean a closure, a storm or quiet night hours.")
 
         subtitle("🌍 What this hub is")
         st.markdown(hub["role"])
@@ -512,20 +554,27 @@ def render_conflict(name, headlines, air, air_history, statuses, prices, changes
         bottom_line(f"{name}: {text}", severity)
 
         count = (air or {}).get("counts", {}).get(name, {}).get("airborne")
-        c1, c2 = st.columns(2)
-        c3, c4 = st.columns(2)
-        c1.metric("Activity level", level)
-        c2.metric("Military headlines", f"{military} of {len(headlines)}")
-        c3.metric("In last 48 hours", fresh)
-        c4.metric("Aircraft overhead now", count if count is not None else "n/a")
+        subtitle("🛡️ Activity in numbers")
+        stat_cards([
+            {"label": "Activity level", "value": level,
+             "explain": "Krypton's rating from recent news: Quiet, Low, Elevated or High."},
+            {"label": "Military headlines", "value": f"{military} of {len(headlines)}",
+             "explain": f"How many of the latest {len(headlines)} news headlines about this area mention military "
+                        "action (strikes, troops, missiles, drones)."},
+            {"label": "Fresh headlines · last 48 hours", "value": fresh,
+             "explain": "Military headlines from the last 2 days. More fresh ones = more is happening right now."},
+            {"label": "Aircraft overhead · right now", "value": count if count is not None else "n/a",
+             "explain": "Planes tracked flying over the area. A sudden drop can mean the airspace was closed."},
+        ])
 
         dated = pd.Series([h["published"] for h in headlines if h.get("published")])
         if not dated.empty:
             per_day = dated.dt.tz_convert(None).dt.floor("D").value_counts().sort_index()
             line_chart(per_day, "Headlines about this conflict per day (latest 15)", "Headlines", bars=True,
-                       colour="#ff1744", height=210)
-        line_chart(get_air_series(name), "Aircraft flying over the area (each saved snapshot)", "Aircraft",
-                   height=200)
+                       colour="#ff1744", height=210,
+                       explain="How many of the latest news headlines came out on each day. A tall bar = a burst of news.")
+        line_chart(get_air_series(name), "Aircraft flying over the area (each saved check)", "Aircraft",
+                   height=200, explain="Each point is one saved live count of planes over the area.")
 
         subtitle("👀 What to watch next")
         bullets([
@@ -603,17 +652,22 @@ def render_disaster(d, prices, changes, headlines):
         effect = ("expect real damage and disruption for days or weeks" if d["alert"] == "Red"
                   else "local disruption likely; global markets react only if it hits key ports, crops, mines or factories")
         bottom_line(f"{d['type']} in {region or d['country'][:60]}: {effect}.", severity)
-        c1, c2 = st.columns(2)
-        c3, _ = st.columns(2)
-        c1.metric("Alert", d["alert"])
-        c2.metric("Started", d["started"])
-        c3.metric("Region", region or "Other")
+        subtitle("📋 Event facts")
+        stat_cards([
+            {"label": "Alert level", "value": d["alert"],
+             "explain": "From GDACS, the UN-backed disaster alert system: Green = minor, Orange = serious, Red = severe."},
+            {"label": "Started", "value": d["started"], "explain": "The date disaster agencies first reported it."},
+            {"label": "Region", "value": region or "Other",
+             "explain": "The part of the world Krypton uses to work out which markets it may affect."},
+        ])
         if d["severity"]:
             st.markdown(f"**Measured strength:** {d['severity']}")
         st.markdown(f"**Where:** {d['country'][:400]}")
         if chart is not None and not chart.empty:
             line_chart(chart, "Rain each month at the event's centre, % of normal (100% = normal)", "% of normal",
-                       colour="#3fa9ff", bars=True)
+                       colour="#3fa9ff", bars=True,
+                       explain="Each bar is one month's rain where the event is centred, compared with the 35-year "
+                               "average. 100% = normal; below = drier than normal; above = wetter.")
         subtitle("👀 What to watch next")
         watch = {"Cyclone": ["The storm's forecast track: which coasts, ports and cities it heads toward.",
                              "Wind speed: weakening over cooler water or land, or strengthening over warm water."],
@@ -672,11 +726,16 @@ def render_rough(place_kind, place, weather, prices, changes):
     with tabs[0]:
         bottom_line(f"{', '.join(f[0].lower() for f in flags)} at {place} right now. A short-term risk: "
                     "usually clears within hours to a couple of days.", severity)
-        c1, c2 = st.columns(2)
-        c3, _ = st.columns(2)
-        c1.metric("Wind gusts", f"{weather['gusts']:.0f} km/h")
-        c2.metric("Waves", f"{weather['waves_m']:.1f} m" if weather.get("waves_m") is not None else "n/a")
-        c3.metric("Visibility", f"{weather['visibility_km']:.1f} km" if weather.get("visibility_km") is not None else "n/a")
+        subtitle("🌬️ Conditions in numbers")
+        stat_cards([
+            {"label": "Wind gusts", "value": f"{weather['gusts']:.0f} km/h" if weather.get("gusts") is not None else "n/a",
+             "explain": "The strongest bursts of wind right now. 60+ km/h is strong; 90+ km/h is storm-force."},
+            {"label": "Wave height", "value": f"{weather['waves_m']:.1f} m" if weather.get("waves_m") is not None else "n/a",
+             "explain": "How tall the waves are. 3+ m is rough for ships; 5+ m is very rough."},
+            {"label": "Visibility",
+             "value": f"{weather['visibility_km']:.1f} km" if weather.get("visibility_km") is not None else "n/a",
+             "explain": "How far you can see. Under 1 km (fog) slows ships and planes down."},
+        ])
         st.markdown(describe_weather(weather))
         subtitle("What it affects")
         st.markdown("Ships may slow, anchor or be held by port authorities." if place_kind == "chokepoint" else

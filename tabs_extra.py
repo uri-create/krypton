@@ -17,7 +17,7 @@ from analyst import api_key_available, ask
 from backtest import load_results, run_backtest, summarise
 from briefing import list_briefings, read_briefing, write_briefing
 from layers import CATEGORIES
-from panels import line_chart, pie_chart, subtitle
+from panels import line_chart, pie_chart, stat_cards, subtitle
 from portfolio import exposure, holding_prices, load_portfolio, lookup_holding, save_portfolio
 from why_moved import explain, load_today, week_move
 from severity import SEVERITY
@@ -271,7 +271,8 @@ def portfolio_tab(state, user):
 
             with st.expander("More details"):
                 if h["ticker"] in held:
-                    line_chart(held[h["ticker"]], f"{h['ticker']} price, last 12 months", "Price", height=170)
+                    line_chart(held[h["ticker"]], f"{h['ticker']} price, last 12 months", "Price", height=170,
+                               explain="The price at the end of each trading day over the last year.")
                 if links:
                     render_holding(h, links)
                 if st.button("🗑️ Remove from portfolio", key=f"remove_{h['ticker']}"):
@@ -302,11 +303,16 @@ def alerts_tab(state, user):
                          key=lambda e: -SEVERITY[e["severity"]]["rank"])
 
     # ---------- Summary numbers ----------
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Serious events right now", len(serious_now), help="Critical or High severity, live from the map.")
-    c2.metric("Alerts, last 24 hours", sum(1 for a in log if now - when(a) <= dt.timedelta(hours=24)))
-    c3.metric("Alerts, last 7 days", sum(1 for a in log if now - when(a) <= dt.timedelta(days=7)))
-    c4.metric("You're alerted at", f"{settings['min_severity']}+", help="Change this in ⚙️ Alert settings below.")
+    stat_cards([
+        {"label": "Serious events · right now", "value": len(serious_now),
+         "explain": "Events on the live map rated Critical or High: the ones most likely to move markets."},
+        {"label": "Alerts · last 24 hours", "value": sum(1 for a in log if now - when(a) <= dt.timedelta(hours=24)),
+         "explain": "How many times Krypton alerted you in the past day."},
+        {"label": "Alerts · last 7 days", "value": sum(1 for a in log if now - when(a) <= dt.timedelta(days=7)),
+         "explain": "How many times Krypton alerted you in the past week."},
+        {"label": "Your alert level", "value": f"{settings['min_severity']}+",
+         "explain": "You're only alerted about events this serious or worse. Change it in ⚙️ Alert settings below."},
+    ], per_row=4)
 
     # ---------- Right now ----------
     subtitle(f"📌 Right now: {len(serious_now)} serious events")
@@ -353,11 +359,12 @@ def alerts_tab(state, user):
         if len(days) >= 2:
             per_day = pd.Series({d.strftime("%d %b"): sum(1 for a in log if when(a).date() == d)
                                  for d in sorted(days)})
-            line_chart(per_day, "Alerts per day", "Alerts", bars=True, colour="#ff7a00", height=220)
+            line_chart(per_day, "Alerts per day", "Alerts", bars=True, colour="#ff7a00", height=220,
+                       explain="How many alerts Krypton sent you on each day. A tall bar = a busy day in the world.")
         categories = pd.Series([a["category"] for a in log]).value_counts()
         if len(categories) >= 2:
             pie_chart([f"{c} ({n})" for c, n in categories.items()], list(categories.values),
-                      "What the alerts were about", note="Each colour is a type of event. Number = alerts.")
+                      "What the alerts were about", note="Each colour is a type of event (shipping, weather, military...). The number = how many alerts it caused.")
 
     # ---------- Settings (tucked away) ----------
     with st.expander("⚙️ Alert settings & notifications"):

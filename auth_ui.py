@@ -132,10 +132,14 @@ def visitor_ip():
 
 def account_tab(user):
     st.markdown("### 👤 Your account")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Username", user["username"])
-    c2.metric("Role", "Admin" if user["is_admin"] else "User")
-    c3.metric("Plan", "Admin" if user["is_admin"] else ("Pro" if is_pro(user) else "Free"))
+    from panels import stat_cards
+    stat_cards([
+        {"label": "Username", "value": user["username"], "explain": "The name you log in with."},
+        {"label": "Role", "value": "Admin" if user["is_admin"] else "User",
+         "explain": "Admin = the owner of Krypton. Everyone else is a user."},
+        {"label": "Plan", "value": "Admin" if user["is_admin"] else ("Pro" if is_pro(user) else "Free"),
+         "explain": "Free = everything except the AI features. Pro = AI features unlocked."},
+    ], per_row=3)
     st.caption(f"Account created {user['created']}. Your portfolio, alerts and briefings are stored privately "
                "and no other user can see them.")
 

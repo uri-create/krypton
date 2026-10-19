@@ -28,7 +28,7 @@ from tabs_extra import alerts_tab, analyst_tab, briefing_tab, portfolio_tab, tra
 from auth_ui import account_tab, login_gate
 from billing import handle_return, pro_page
 from storage import MISCONFIGURED
-from panels import (SEVERITY, chokepoint_severity, conflict_severity, disaster_severity, hub_severity,
+from panels import (SEVERITY, stat_cards, chokepoint_severity, conflict_severity, disaster_severity, hub_severity,
                     line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
                     render_rough, rough_severity)
 
@@ -145,6 +145,20 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
           font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }}
 .section {{ color: #ff8a95; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
             margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }}
+
+/* Number cards that explain themselves (panels.stat_cards) */
+.stat {{ background: rgba(255, 255, 255, 0.025); border: 1px solid var(--line); border-radius: 14px;
+         padding: 14px 16px 12px; margin-bottom: 12px; height: calc(100% - 12px); }}
+.stat-label {{ color: var(--muted); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+               text-transform: uppercase; }}
+.stat-value {{ color: var(--text); font-size: 1.9rem; font-weight: 700; line-height: 1.2; margin-top: 4px;
+               font-family: 'Space Grotesk', 'Inter', sans-serif; font-variant-numeric: tabular-nums; }}
+.stat-delta {{ display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 999px; font-size: 0.75rem;
+               font-weight: 600; background: rgba(255, 255, 255, 0.06); color: var(--muted); }}
+.stat-delta.bad {{ background: rgba(255, 42, 61, 0.14); color: #ff6b78; }}
+.stat-delta.good {{ background: rgba(61, 220, 132, 0.12); color: #5ee39a; }}
+.stat-explain {{ color: #a3a3ae; font-size: 0.8rem; line-height: 1.45; margin-top: 8px;
+                 border-top: 1px solid var(--line); padding-top: 8px; }}
 
 /* Slim dark scrollbars */
 ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
@@ -440,6 +454,9 @@ def trends_and_markets():
     # DETAIL SECTIONS
     # ===========================================================================
     st.markdown("### 🚢 Chokepoints at a glance")
+    st.caption("Each row is one of the world's key shipping routes. 'Ships/day' = average number of ships passing "
+               "through each day; the % columns compare that with normal (the last 3 months) and with a year ago. "
+               "Status sums it up: Normal, Below normal, Disrupted or Unusually busy.")
     st.dataframe([{"": STATUS_STYLE[s["Status"]]["emoji"], **{k: v for k, v in s.items() if k != "Data up to"}}
                   for s in statuses], hide_index=True, width="stretch")
 
@@ -450,38 +467,47 @@ def trends_and_markets():
         chosen = st.selectbox("Shipping chokepoint", [s["Chokepoint"] for s in problem_first])
         daily = traffic[traffic["chokepoint"] == chosen].set_index("date").sort_index()
         line_chart(daily["ships"].rolling(7).mean(), f"Ships passing through {chosen} per day (7-day average)",
-                   "Ships per day", height=300)
+                   "Ships per day", height=300,
+                   explain="Each point is the average number of ships per day over the week before it. "
+                           "Pick a different chokepoint above to compare.")
         kinds = ["tankers", "container ships", "bulk carriers"]
         p1, p2 = st.columns(2)
         with p1:
-            pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-7:].mean().values), "Ship types: this week")
+            pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-7:].mean().values), "Ship types: this week",
+                      note="Tankers carry oil & gas, container ships carry goods, bulk carriers carry grain, coal and ore.")
         with p2:
             if len(daily) >= 372:
                 pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-372:-365].mean().values),
-                          "Ship types: a year ago")
+                          "Ship types: a year ago", note="The same mix a year ago, to spot which ships are staying away.")
     with right:
         sector = st.selectbox("Sector", list(SECTORS))
         market = st.selectbox("Market", [m for m in SECTORS[sector] if m in prices.columns])
-        line_chart(prices[market], f"{market}: daily price, last 12 months", "Price", colour="#ffb000", height=300)
+        line_chart(prices[market], f"{market}: daily price, last 12 months", "Price", colour="#ffb000", height=300,
+                   explain="The price at the end of each trading day over the last year.")
         month_moves = {m: (changes.get(m) or {}).get("1 month (%)") for m in SECTORS[sector]}
         risers = sum(1 for v in month_moves.values() if v is not None and v > 1)
         fallers = sum(1 for v in month_moves.values() if v is not None and v < -1)
         flat = len(month_moves) - risers - fallers
         pie_chart(["Up more than 1%", "Down more than 1%", "About flat"], [risers, fallers, flat],
-                  f"{sector}: how its markets moved this month")
+                  f"{sector}: how its markets moved this month",
+                  note=f"How many of the {len(month_moves)} {sector.split(' ', 1)[-1].lower()} markets Krypton follows "
+                       "went up, went down, or stayed about flat over the last month.")
 
     st.markdown("### 📈 Markets by sector")
-    st.caption("Price now and change over the last month. Hover the ⓘ for 1-week and 1-year moves.")
+    st.caption("Each card shows a market's latest price, how much it moved this month (green = up, red = down), "
+               "and its moves over the last week and year.")
     for tab, sector in zip(st.tabs(list(SECTORS)), SECTORS):
         with tab:
-            names = [m for m in SECTORS[sector] if m in changes]
-            cols = st.columns(4)
-            for i, name in enumerate(names):
+            cards = []
+            for name in [m for m in SECTORS[sector] if m in changes]:
                 c = changes[name]
                 month = c["1 month (%)"]
-                cols[i % 4].metric(name, f"{c['Price']:,.2f}",
-                                   delta=f"{month:+.1f}% this month" if month is not None else None,
-                                   help=f"1 week: {describe_move(c['1 week (%)'])} · 1 year: {describe_move(c['1 year (%)'])}")
+                cards.append({"label": name, "value": f"{c['Price']:,.2f}",
+                              "delta": f"{month:+.1f}% this month" if month is not None else None,
+                              "tone": "bad" if (month or 0) < 0 else "good",
+                              "explain": f"Latest price. Last week: {describe_move(c['1 week (%)'])} · "
+                                         f"last year: {describe_move(c['1 year (%)'])}."})
+            stat_cards(cards, per_row=4)
 
 
 with main_tabs[0]:
