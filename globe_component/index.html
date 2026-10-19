@@ -1,0 +1,147 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Krypton 3D globe: a custom Streamlit component.
+     Draws events as glowing icons on a spinning satellite-photo Earth, shipping lanes along the sea,
+     air cargo routes as animated arcs, and pulsing rings on critical events.
+     Clicking an icon sends its id back to Python so the side panel can explain it. -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css">
+<style>
+  html, body { margin: 0; background: #020203; overflow: hidden; font-family: 'JetBrains Mono', monospace; }
+  #globe { width: 100%; }
+  .kwrap { pointer-events: auto; }
+  .kicon { display: block; font-size: 19px; cursor: pointer; transform: translate(-50%, -50%);
+           filter: drop-shadow(0 0 3px #000) drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
+           transition: transform 0.15s; }
+  .kicon:hover { transform: translate(-50%, -50%) scale(1.6); }
+  .pulse { animation: pulse 1.3s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+  #tip { position: absolute; pointer-events: none; display: none; z-index: 10; max-width: 340px;
+         background: rgba(6, 2, 3, 0.94); border: 1px solid #ff2a3d; border-left: 3px solid #ff2a3d;
+         color: #e8e8ee; font-size: 11px; padding: 6px 9px; letter-spacing: 0.03em;
+         box-shadow: 0 0 18px rgba(255, 42, 61, 0.35); }
+  #hint { position: absolute; bottom: 10px; left: 12px; color: #ff2a3d; font-size: 10px;
+          letter-spacing: 0.22em; opacity: 0.85; pointer-events: none; }
+  #corner { position: absolute; top: 10px; right: 12px; color: #ff2a3d; font-size: 10px;
+            letter-spacing: 0.25em; border: 1px solid #ff2a3d; padding: 2px 7px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="globe"></div>
+<div id="tip"></div>
+<div id="hint">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK AN ICON</div>
+<div id="corner">KRYPTON // ORBITAL VIEW</div>
+
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.2/dist/globe.gl.min.js"></script>
+<script>
+  const IMG = "https://cdn.jsdelivr.net/npm/three-globe@2.45.3/example/img/";
+  const tip = document.getElementById("tip");
+  let globe = null;
+  let lastData = "";
+
+  // ---- Talking to Streamlit (the standard component messages) ----
+  function send(type, data) {
+    window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data || {}), "*");
+  }
+  function sendClick(id) {
+    // the time is included so clicking the same icon twice still counts as a new click
+    send("streamlit:setComponentValue", { value: { id: id, t: Date.now() }, dataType: "json" });
+  }
+
+  // ---- One glowing icon per event ----
+  function makeIcon(d) {
+    const wrap = document.createElement("div");
+    wrap.className = "kwrap";
+    const icon = document.createElement("i");
+    icon.className = "fa-solid " + d.icon + " kicon" + (d.pulse ? " pulse" : "");
+    icon.style.color = d.colour;
+    icon.addEventListener("click", (event) => { event.stopPropagation(); sendClick(d.id); });
+    icon.addEventListener("mouseenter", () => { tip.innerHTML = d.tooltip; tip.style.display = "block"; });
+    icon.addEventListener("mousemove", (event) => {
+      tip.style.left = Math.min(event.clientX + 14, window.innerWidth - 350) + "px";
+      tip.style.top = (event.clientY + 14) + "px";
+    });
+    icon.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    wrap.appendChild(icon);
+    return wrap;
+  }
+
+  function build(height) {
+    globe = Globe()(document.getElementById("globe"))
+      .width(window.innerWidth)
+      .height(height)
+      // Bright satellite-photo Earth, 3D mountains, stars behind, red glowing atmosphere
+      .globeImageUrl(IMG + "earth-blue-marble.jpg")
+      .bumpImageUrl(IMG + "earth-topology.png")
+      .backgroundImageUrl(IMG + "night-sky.png")
+      .atmosphereColor("#ff2a3d")
+      .atmosphereAltitude(0.2)
+      // Event icons
+      .htmlElementsData([])
+      .htmlElement(makeIcon)
+      .htmlAltitude(0.01)
+      // Shipping lanes, drawn along the sea; disrupted ones are animated dashes
+      .pathsData([])
+      .pathPoints("coords")
+      .pathPointLat((p) => p[0])
+      .pathPointLng((p) => p[1])
+      .pathColor((d) => d.colour)
+      .pathStroke(1.4)
+      .pathDashLength((d) => (d.dashed ? 0.04 : 1))
+      .pathDashGap((d) => (d.dashed ? 0.02 : 0))
+      .pathDashAnimateTime((d) => (d.dashed ? 9000 : 0))
+      .pathLabel("label")
+      // Air cargo routes, animated arcs flying above the surface
+      .arcsData([])
+      .arcColor(() => ["rgba(255,42,61,0.95)", "rgba(255,170,180,0.95)"])
+      .arcStroke(0.35)
+      .arcDashLength(0.35)
+      .arcDashGap(0.2)
+      .arcDashAnimateTime(2600)
+      .arcAltitudeAutoScale(0.4)
+      .arcLabel("label")
+      // Expanding red rings under every critical event
+      .ringsData([])
+      .ringColor(() => (t) => `rgba(255,42,61,${1 - t})`)
+      .ringMaxRadius(6)
+      .ringPropagationSpeed(2.2)
+      .ringRepeatPeriod(1300);
+
+    // Hide icons that are on the far side of the globe
+    if (typeof globe.htmlElementVisibilityModifier === "function") {
+      globe.htmlElementVisibilityModifier((el, visible) => { el.style.opacity = visible ? 1 : 0;
+                                                            el.style.pointerEvents = visible ? "auto" : "none"; });
+    }
+
+    globe.pointOfView({ lat: 25, lng: 45, altitude: 2.1 });
+    const controls = globe.controls();
+    controls.autoRotate = true;          // slow spin until you grab it
+    controls.autoRotateSpeed = 0.35;
+    controls.addEventListener("start", () => { controls.autoRotate = false; });
+  }
+
+  // ---- Streamlit sends the data on every page refresh ----
+  window.addEventListener("message", (event) => {
+    const message = event.data;
+    if (!message || message.type !== "streamlit:render") return;
+    const args = message.args;
+    if (!globe) {
+      build(args.height);
+      send("streamlit:setFrameHeight", { height: args.height });
+    }
+    const data = JSON.stringify([args.events, args.sea, args.air]);
+    if (data !== lastData) {   // only redraw when something actually changed (keeps your view)
+      lastData = data;
+      globe.htmlElementsData(args.events);
+      globe.pathsData(args.sea);
+      globe.arcsData(args.air);
+      globe.ringsData(args.events.filter((e) => e.pulse));
+    }
+  });
+  window.addEventListener("resize", () => { if (globe) globe.width(window.innerWidth); });
+
+  send("streamlit:componentReady", { apiVersion: 1 });
+</script>
+</body>
+</html>

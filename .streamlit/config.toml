@@ -1,0 +1,22 @@
+# Dark "classified research terminal" theme for Krypton.
+# Streamlit reads this automatically when you run the app from this folder.
+[theme]
+base = "dark"
+primaryColor = "#ff2a3d"              # blood red accent
+backgroundColor = "#020203"           # near-black
+secondaryBackgroundColor = "#0c0607"  # panels
+textColor = "#c9c9d1"                 # cold grey text
+font = "monospace"
+
+# ---- Safety settings for running Krypton on the public internet ----
+[client]
+toolbarMode = "viewer"      # visitors don't get the developer menu
+showErrorDetails = "none"   # never show visitors internal error messages / code
+
+[server]
+runOnSave = false
+maxUploadSize = 1           # Krypton has no uploads; keep the limit tiny
+enableXsrfProtection = true # blocks forged requests from other websites
+
+[browser]
+gatherUsageStats = false

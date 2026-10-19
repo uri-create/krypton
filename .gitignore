@@ -1,0 +1,16 @@
+# ===== NEVER upload these: they contain private data or secrets =====
+# Everything in data/ (accounts, password hashes, portfolios, alerts, backups, caches)...
+data/*
+# ...except the track-record results, which are public facts needed by the website
+!data/backtest.json
+
+# Secret keys and passwords
+.streamlit/secrets.toml
+.env
+*.db
+*.sqlite
+
+# Python clutter
+__pycache__/
+*.pyc
+.venv/

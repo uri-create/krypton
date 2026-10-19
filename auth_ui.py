@@ -1,0 +1,159 @@
+# auth_ui.py
+# The log-in / sign-up screen and the 👤 Account tab.
+
+import secrets
+
+import streamlit as st
+
+from users import (all_users, any_users, change_password, create_account, delete_account, get_user, log_in,
+                   set_ai_allowed)
+
+
+def login_gate():
+    """Return the logged-in user. If nobody is logged in, show the log-in screen and stop the page."""
+    if st.session_state.get("user"):
+        fresh = get_user(st.session_state["user"]["id"])  # re-read: permissions may have changed
+        if fresh:
+            st.session_state["user"] = fresh
+            return fresh
+        st.session_state.pop("user")  # account was deleted
+
+    _, middle, _ = st.columns([1, 1.3, 1])
+    with middle:
+        st.markdown("<div class='hud' style='justify-content:center'><div class='hud-title'>KRYPTON</div>"
+                    "<div class='hud-tag'>RESTRICTED ACCESS</div></div>", unsafe_allow_html=True)
+        if not any_users():
+            st.info("No accounts yet. **The first account created becomes the admin** (the owner of this Krypton).")
+        log_in_tab, sign_up_tab = st.tabs(["🔑 Log in", "🆕 Create account"])
+
+        with log_in_tab:
+            with st.form("log_in"):
+                username = st.text_input("Username")
+                password = st.text_input("Password", type="password")
+                if st.form_submit_button("Log in", type="primary", use_container_width=True):
+                    user, error = log_in(username.strip(), password)
+                    if user:
+                        st.session_state["user"] = user
+                        st.rerun()
+                    st.error(error)
+
+        with sign_up_tab:
+            # A simple "are you human?" sum, new for each visitor, to slow down sign-up bots
+            if "human_check" not in st.session_state:
+                st.session_state["human_check"] = (secrets.randbelow(9) + 1, secrets.randbelow(9) + 1)
+            a, b = st.session_state["human_check"]
+            with st.form("sign_up"):
+                username = st.text_input("Choose a username", max_chars=20, help="3–20 letters, numbers or _")
+                password = st.text_input("Choose a password", type="password", max_chars=128,
+                                         help="At least 8 characters")
+                again = st.text_input("Type the password again", type="password", max_chars=128)
+                answer = st.text_input(f"Are you human? What is {a} + {b}?", max_chars=3)
+                agreed = st.checkbox("I've read the privacy notice below")
+                if st.form_submit_button("Create account", type="primary", use_container_width=True):
+                    if answer.strip() != str(a + b):
+                        st.error("That sum isn't right. Try again.")
+                    elif not agreed:
+                        st.error("Please read and tick the privacy notice first.")
+                    elif password != again:
+                        st.error("The two passwords don't match.")
+                    else:
+                        user, error = create_account(username.strip(), password, ip=visitor_ip())
+                        if user:
+                            st.session_state.pop("human_check", None)
+                            st.session_state["user"] = user
+                            st.rerun()
+                        st.error(error)
+        st.caption("Your portfolio, alerts and briefings are private to your account.")
+        with st.expander("🔒 Privacy notice"):
+            st.markdown(PRIVACY_NOTICE)
+    st.stop()
+
+
+PRIVACY_NOTICE = """
+**What Krypton stores about you:** only your username, a scrambled (hashed) version of your password,
+and what you add yourself: your portfolio, alert settings, alert history and daily briefings.
+No email, no real name, no location, no payment details.
+
+**Who can see it:** only you, when logged in. Other users can never see your data. Your password
+is stored as a one-way hash, so nobody, not even the person running Krypton, can read it.
+The person running Krypton could technically open the database, as with any website.
+
+**AI features:** if switched on for you, your questions and your list of stocks are sent to
+Anthropic's AI to write the answers.
+
+**Deleting your data:** 👤 Account → Delete my account removes your account and everything in it.
+
+**Not financial advice:** Krypton is for learning and research only.
+"""
+
+
+def visitor_ip():
+    """The visitor's internet address (used only to limit sign-ups), if Streamlit can see it."""
+    try:
+        return st.context.ip_address
+    except Exception:
+        return None
+
+
+def account_tab(user):
+    st.markdown("### 👤 Your account")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Username", user["username"])
+    c2.metric("Role", "Admin" if user["is_admin"] else "User")
+    c3.metric("AI features", "On" if user["ai_allowed"] else "Off")
+    st.caption(f"Account created {user['created']}. Your portfolio, alerts and briefings are stored privately "
+               "and no other user can see them.")
+
+    if st.button("🚪 Log out"):
+        st.session_state.clear()
+        st.rerun()
+
+    with st.expander("🔑 Change password"):
+        with st.form("change_password", clear_on_submit=True):
+            old = st.text_input("Current password", type="password")
+            new = st.text_input("New password", type="password")
+            again = st.text_input("New password again", type="password")
+            if st.form_submit_button("Change password"):
+                if new != again:
+                    st.error("The new passwords don't match.")
+                else:
+                    error = change_password(user["id"], old, new)
+                    st.error(error) if error else st.success("Password changed.")
+
+    if not user["is_admin"]:
+        with st.expander("🗑️ Delete my account"):
+            st.warning("This permanently deletes your account, portfolio, alerts and briefings.")
+            sure = st.checkbox("Yes, I understand this can't be undone")
+            if st.button("Delete my account", disabled=not sure):
+                delete_account(user["id"])
+                st.session_state.clear()
+                st.rerun()
+        return
+
+    # ---------- Admin only ----------
+    st.markdown("### 🛡️ Admin: users")
+    st.caption("AI features use YOUR API key and cost money, so they're off for new users until you switch them on.")
+    for other in all_users():
+        with st.container(border=True):
+            left, middle, right = st.columns([2, 1.2, 1])
+            left.markdown(f"**{other['username']}** {'· 🛡️ admin' if other['is_admin'] else ''}  \n"
+                          f"<small>joined {other['created']}</small>", unsafe_allow_html=True)
+            if other["is_admin"]:
+                middle.markdown("AI: always on")
+            else:
+                allowed = middle.toggle("AI features", value=other["ai_allowed"], key=f"ai_{other['id']}")
+                if allowed != other["ai_allowed"]:
+                    set_ai_allowed(other["id"], allowed)
+                    st.rerun()
+                if right.button("Delete", key=f"delete_{other['id']}"):
+                    st.session_state[f"confirm_{other['id']}"] = True
+                if st.session_state.get(f"confirm_{other['id']}"):
+                    st.warning(f"Delete **{other['username']}** and all their data?")
+                    yes, no = st.columns(2)
+                    if yes.button("Yes, delete", key=f"yes_{other['id']}"):
+                        delete_account(other["id"])
+                        st.session_state.pop(f"confirm_{other['id']}")
+                        st.rerun()
+                    if no.button("Cancel", key=f"no_{other['id']}"):
+                        st.session_state.pop(f"confirm_{other['id']}")
+                        st.rerun()
