@@ -15,6 +15,7 @@ from analysis import STATUS_STYLE, build_briefing
 from auth_ui import account_tab, login_gate
 from billing import handle_return, pro_page
 from compass import READINGS, reading
+from clusters_tab import clusters_tab
 from compass_tab import compass_tab
 from data_sources import CHOKEPOINTS, get_headlines
 from explain_layers import air_hub_status
@@ -25,7 +26,7 @@ from markets_tab import markets_tab
 from panels import (SEVERITY, line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
                     render_rough)
 from storage import MISCONFIGURED
-from tabs_extra import alerts_tab, analyst_tab, briefing_tab, portfolio_tab
+from tabs_extra import analyst_tab, briefing_tab, portfolio_tab
 
 st.set_page_config(page_title="Krypton", page_icon="🔺", layout="wide")
 st.session_state["_chart_n"] = 0  # chart ID counter, see panels.chart_key
@@ -60,7 +61,7 @@ h1, h2, h3, .hud-title, .panel-title {{ font-family: 'Space Grotesk', 'Inter', s
 .block-container {{ padding-top: 2rem; }}
 
 h1, h2 {{ font-weight: 700 !important; letter-spacing: -0.01em; color: var(--text) !important; }}
-h3 {{ color: var(--text) !important; font-size: 1.02rem !important; font-weight: 600 !important;
+h3 {{ color: var(--text) !important; font-size: 1.15rem !important; font-weight: 600 !important;
       letter-spacing: 0.01em; display: flex; align-items: center; gap: 10px; margin-top: 0.6rem; }}
 h3::before {{ content: ""; width: 4px; height: 18px; border-radius: 4px; flex: none;
               background: linear-gradient(180deg, var(--red), var(--red-deep));
@@ -73,9 +74,7 @@ h3::before {{ content: ""; width: 4px; height: 18px; border-radius: 4px; flex: n
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03);
   transition: border-color 0.25s, box-shadow 0.25s;
 }}
-[data-testid="stVerticalBlockBorderWrapper"]:hover {{
-  border-color: var(--line-red) !important;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 28px rgba(255, 42, 61, 0.08); }}
+[data-testid="stVerticalBlockBorderWrapper"]:hover {{ border-color: rgba(255, 42, 61, 0.22) !important; }}
 [data-testid="stMetric"] {{ background: rgba(255, 255, 255, 0.02); border: 1px solid var(--line);
                             border-radius: 12px; padding: 10px 14px; }}
 [data-testid="stMetricValue"] {{ color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }}
@@ -95,11 +94,19 @@ button[kind="primary"], button[kind="primaryFormSubmit"], a[kind="primary"] {{
 button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="primary"]:hover {{
   box-shadow: 0 8px 30px rgba(255, 42, 61, 0.45); transform: translateY(-1px); }}
 
-/* Tabs: clean underline with a red glow */
-.stTabs [data-baseweb="tab-list"] {{ gap: 4px; border-bottom: 1px solid var(--line); }}
-.stTabs [data-baseweb="tab"] {{ border-radius: 10px 10px 0 0; padding: 8px 14px; color: var(--muted); }}
-.stTabs [aria-selected="true"] {{ color: var(--text) !important; background: rgba(255, 42, 61, 0.07); }}
-.stTabs [data-baseweb="tab-highlight"] {{ background: var(--red); box-shadow: 0 0 12px var(--red); }}
+/* Tabs: a smooth segmented pill bar */
+.stTabs [role="tablist"] {{ gap: 4px; padding: 5px; border-radius: 14px; border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025); width: fit-content; max-width: 100%; overflow-x: auto; }}
+.stTabs [role="tablist"]::after {{ display: none; }}
+.stTabs [role="tab"] {{ border-radius: 10px; padding: 8px 16px; color: var(--muted); height: auto;
+  border: none !important; transition: background 0.2s, color 0.2s; }}
+.stTabs [role="tab"]::after, .stTabs [role="tab"]::before {{ display: none !important; }}
+.stTabs [role="tab"]:hover {{ color: var(--text); background: rgba(255, 255, 255, 0.04); }}
+.stTabs [role="tab"][aria-selected="true"] {{ color: #fff !important;
+  background: linear-gradient(135deg, rgba(255, 42, 61, 0.24), rgba(139, 10, 26, 0.24)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 42, 61, 0.35); }}
+.stTabs [role="tab"] > div {{ border: none !important; }}
+.stTabs [data-testid="stTabPanel"] {{ padding-top: 18px; }}
 
 /* Inputs */
 [data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"] {{
@@ -181,6 +188,64 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
               font-variant-numeric: tabular-nums; }}
 .ktable tr:hover td {{ background: rgba(255, 42, 61, 0.04); }}
 
+/* "How to read this" explainer boxes */
+.howto {{ border-left: 2px solid rgba(255, 42, 61, 0.55); background: rgba(255, 255, 255, 0.025);
+          border-radius: 0 12px 12px 0; padding: 10px 14px; margin: 2px 0 14px; color: #b4b4be;
+          font-size: 0.86rem; line-height: 1.55; }}
+.howto b {{ color: #e9e9ee; font-weight: 600; }}
+.howto-title {{ color: #ff8a95; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
+                text-transform: uppercase; margin-bottom: 4px; }}
+.muted {{ color: #7a7a86; }}
+
+/* Compass legend */
+.legend {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 16px; }}
+.legend-item {{ display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px;
+                background: rgba(255, 255, 255, 0.025); border: 1px solid var(--line); font-size: 0.82rem; }}
+.legend-range {{ color: var(--muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; }}
+.legend-text {{ color: #a3a3ae; font-size: 0.78rem; line-height: 1.4; }}
+
+/* World-risk list */
+.risk-list {{ display: flex; flex-direction: column; gap: 6px; }}
+.risk-row {{ display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px;
+             background: rgba(255, 255, 255, 0.025); border: 1px solid var(--line); flex-wrap: wrap; }}
+.risk-row .muted {{ margin-left: auto; font-size: 0.78rem; }}
+.risk-dot {{ width: 8px; height: 8px; border-radius: 50%; flex: none; }}
+
+/* Heat map tiles */
+.heat-legend {{ display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.75rem;
+                margin: 0 0 12px; }}
+.heat-scale {{ width: 220px; height: 8px; border-radius: 999px;
+               background: linear-gradient(90deg, rgba(255,42,61,0.65), rgba(255,255,255,0.06), rgba(61,220,132,0.65)); }}
+.heat-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }}
+.heat-sector {{ border: 1px solid var(--line); border-radius: 16px; padding: 12px; background: var(--glass); }}
+.heat-head {{ display: flex; justify-content: space-between; align-items: center; color: var(--text);
+              font-weight: 600; font-size: 0.9rem; margin-bottom: 10px; }}
+.heat-head .stat-delta {{ margin-top: 0; }}
+.heat-tiles {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }}
+.tile {{ border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; min-height: 52px;
+         border: 1px solid rgba(255, 255, 255, 0.05); transition: transform 0.15s, box-shadow 0.15s; cursor: default; }}
+.tile:hover {{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); }}
+.tile-name {{ color: #e9e9ee; font-size: 0.72rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis;
+              display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
+.tile-move {{ color: #fff; font-weight: 700; font-size: 0.92rem; font-variant-numeric: tabular-nums;
+              font-family: 'Space Grotesk', 'Inter', sans-serif; }}
+
+/* Cluster cards and chips */
+.cluster-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-bottom: 8px; }}
+.cluster-card {{ border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; background: var(--glass);
+                 margin-bottom: 10px; }}
+.cluster-head {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; }}
+.cluster-head .stat-delta {{ margin-top: 0; }}
+.cluster-title {{ color: var(--text); font-weight: 600; font-size: 1rem; font-family: 'Space Grotesk', 'Inter', sans-serif; }}
+.cluster-meta {{ color: #a3a3ae; font-size: 0.8rem; margin: 6px 0; }}
+.cluster-spans {{ color: #ffb000; font-size: 0.76rem; margin-top: 8px; }}
+.bar {{ height: 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden; margin-bottom: 10px; }}
+.bar > div {{ height: 100%; border-radius: 999px; background: linear-gradient(90deg, #8b0a1a, var(--red)); }}
+.chips {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+.chip {{ font-size: 0.74rem; color: #c9c9d1; padding: 4px 10px; border-radius: 999px;
+         background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }}
+.chip-anchor {{ color: #fff; border-color: rgba(255, 42, 61, 0.5); background: rgba(255, 42, 61, 0.12); }}
+
 /* Slim dark scrollbars */
 ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
 ::-webkit-scrollbar-thumb {{ background: rgba(255, 42, 61, 0.25); border-radius: 8px; }}
@@ -245,7 +310,7 @@ planes = f"{air['total_planes']:,}" if air else "—"
 weather_html = ""
 if state.get("compass"):
     _name = reading(state["compass"]["today"]["Score"])
-    weather_html = (f'<div class="hud-item">Market weather<b style="color:{READINGS[_name]["colour"]}">'
+    weather_html = (f'<div class="hud-item">Market reading<b style="color:{READINGS[_name]["colour"]}">'
                     f'{READINGS[_name]["icon"]} {_name}</b></div>')
 st.markdown(f"""
 <div class="hud">
@@ -265,7 +330,7 @@ st.caption("For learning and research only. Not financial advice.")
 # ===========================================================================
 # MAIN TABS
 # ===========================================================================
-main_tabs = st.tabs(["🧭 Market Compass", "🌍 World map", "📈 Markets", "💼 My portfolio", "🔔 Alerts",
+main_tabs = st.tabs(["🧭 Market Compass", "🌍 World map", "📈 Markets", "🧬 Clusters", "💼 My portfolio",
                      "🤖 Ask the analyst", "📰 Daily briefing", "👤 Account"])
 
 
@@ -283,9 +348,9 @@ with main_tabs[0]:
 with main_tabs[2]:
     as_fragment(markets_tab, 80_000)(state)
 with main_tabs[3]:
-    as_fragment(portfolio_tab, 10_000)(state, user)
+    as_fragment(clusters_tab, 20_000)(state)
 with main_tabs[4]:
-    as_fragment(alerts_tab, 20_000)(state, user)
+    as_fragment(portfolio_tab, 10_000)(state, user)
 with main_tabs[5]:
     as_fragment(analyst_tab, 40_000)(state, user)
 with main_tabs[6]:

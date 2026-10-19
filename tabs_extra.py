@@ -1,23 +1,18 @@
 # tabs_extra.py
 # The main tabs beside the live map:
-#   💼 My portfolio · 🔔 Alerts · 📊 Track record · 🤖 Ask the analyst · 📰 Daily briefing
+#   💼 My portfolio · 📊 Track record (shown inside the Compass) · 🤖 Ask the analyst · 📰 Daily briefing
 
 import datetime as dt
 import html
-import os
 import re
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
-from alerts import (alert_text, check_for_alerts, load_log, load_settings, save_settings, send_notifications,
-                    severity_colour)
 from analyst import api_key_available, ask
 from backtest import load_results, run_backtest, summarise
 from briefing import list_briefings, read_briefing, write_briefing
-from layers import CATEGORIES
-from panels import line_chart, pie_chart, stat_cards, subtitle
+from panels import line_chart, subtitle
 from portfolio import exposure, holding_prices, load_portfolio, lookup_holding, save_portfolio
 from why_moved import explain, load_today, week_move
 from severity import SEVERITY
@@ -39,7 +34,7 @@ def ai_off(user, key, label):
 
 
 def badge(severity):
-    colour = severity_colour(severity)
+    colour = SEVERITY[severity]["colour"]
     return (f"<span style='color:{colour};border:1px solid {colour};padding:1px 7px;font-size:0.72rem;"
             f"letter-spacing:0.1em'>{severity.upper()}</span>")
 
@@ -281,121 +276,6 @@ def portfolio_tab(state, user):
 
 
 # ===========================================================================
-# 🔔 ALERTS
-# ===========================================================================
-CHANGE_WORDS = {"🆕 NEW": ("🆕", "New", "appeared"), "⬆️ ESCALATED": ("⬆️", "Worse", "got more serious"),
-                "⬇️ EASED": ("⬇️", "Calmer", "calmed down")}
-
-
-def alerts_tab(state, user):
-    st.markdown("### 🔔 Alerts")
-    st.caption("Every 30 minutes Krypton compares the world with the last check and records each serious event "
-               "that appears, gets worse, or calms down.")
-    store = user["store"]
-    settings = load_settings(store)
-    log = load_log(store)
-    now = dt.datetime.now()
-
-    def when(alert):
-        return dt.datetime.strptime(alert["time"], "%Y-%m-%d %H:%M")
-
-    serious_now = sorted([e for e in state["events"] if e["severity"] in ("Critical", "High")],
-                         key=lambda e: -SEVERITY[e["severity"]]["rank"])
-
-    # ---------- Summary numbers ----------
-    stat_cards([
-        {"label": "Serious events · right now", "value": len(serious_now),
-         "explain": "Events on the live map rated Critical or High: the ones most likely to move markets."},
-        {"label": "Alerts · last 24 hours", "value": sum(1 for a in log if now - when(a) <= dt.timedelta(hours=24)),
-         "explain": "How many times Krypton alerted you in the past day."},
-        {"label": "Alerts · last 7 days", "value": sum(1 for a in log if now - when(a) <= dt.timedelta(days=7)),
-         "explain": "How many times Krypton alerted you in the past week."},
-        {"label": "Your alert level", "value": f"{settings['min_severity']}+",
-         "explain": "You're only alerted about events this serious or worse. Change it in ⚙️ Alert settings below."},
-    ], per_row=4)
-
-    # ---------- Right now ----------
-    subtitle(f"📌 Right now: {len(serious_now)} serious events")
-    rows = ["<table style='width:100%;border-collapse:collapse;font-size:0.82rem'>",
-            "<tr style='color:#77777f;text-align:left;border-bottom:1px solid #2a1216'>"
-            "<th>Severity</th><th>Event</th><th>Type</th></tr>"]
-    for e in serious_now[:15]:
-        rows.append(f"<tr style='border-bottom:1px solid #160a0c'><td style='padding:4px 0'>{badge(e['severity'])}</td>"
-                    f"<td><b>{html.escape(e['name'])}</b></td><td style='color:#9a9aa4'>{e['category']}</td></tr>")
-    rows.append("</table>")
-    st.markdown("".join(rows), unsafe_allow_html=True)
-    if len(serious_now) > 15:
-        st.caption(f"…and {len(serious_now) - 15} more on the map.")
-
-    # ---------- History ----------
-    subtitle(f"📜 Alert history ({len(log)})")
-    st.caption("🆕 New = a serious event appeared · ⬆️ Worse = its severity went up · ⬇️ Calmer = it dropped "
-               "below your alert level.")
-    if not log:
-        st.info("No alerts yet. Krypton only alerts on REAL changes between two checks. The first check just "
-                "records how the world looks, so alerts start from the next change.")
-    else:
-        days = sorted({when(a).date() for a in log}, reverse=True)
-        for day in days:
-            items = [a for a in log if when(a).date() == day]
-            st.markdown(f"**{day:%A %d %B %Y}** · {len(items)} alert{'s' if len(items) != 1 else ''}")
-            table = ["<table style='width:100%;border-collapse:collapse;font-size:0.8rem;margin-bottom:10px'>",
-                     "<tr style='color:#77777f;text-align:left;border-bottom:1px solid #2a1216'>"
-                     "<th>Time</th><th>Change</th><th>Event</th><th>Severity</th><th>Markets to watch</th></tr>"]
-            for a in items:
-                icon, word, _ = CHANGE_WORDS.get(a["change"], ("", a["change"], ""))
-                severity = (f"{a['was']} → {badge(a['severity'])}" if a["was"] and a["was"] != a["severity"]
-                            else badge(a["severity"]))
-                mine = (f"<br><small style='color:#ff8a95'>⚠️ affects your {', '.join(a['your_holdings'])}</small>"
-                        if a.get("your_holdings") else "")
-                table.append(f"<tr style='border-bottom:1px solid #160a0c'><td style='padding:4px 0'>{when(a):%H:%M}</td>"
-                             f"<td>{icon} {word}</td><td><b>{html.escape(a['event'])}</b><br><small style='color:#9a9aa4'>"
-                             f"{a['category']}</small>{mine}</td><td>{severity}</td>"
-                             f"<td style='color:#c9c9d1'>{html.escape(a['markets'] or '—')}</td></tr>")
-            table.append("</table>")
-            st.markdown("".join(table), unsafe_allow_html=True)
-
-        # Charts only when there's enough data for them to mean something
-        if len(days) >= 2:
-            per_day = pd.Series({d.strftime("%d %b"): sum(1 for a in log if when(a).date() == d)
-                                 for d in sorted(days)})
-            line_chart(per_day, "Alerts per day", "Alerts", bars=True, colour="#ff7a00", height=220,
-                       explain="How many alerts Krypton sent you on each day. A tall bar = a busy day in the world.")
-        categories = pd.Series([a["category"] for a in log]).value_counts()
-        if len(categories) >= 2:
-            pie_chart([f"{c} ({n})" for c, n in categories.items()], list(categories.values),
-                      "What the alerts were about", note="Each colour is a type of event (shipping, weather, military...). The number = how many alerts it caused.")
-
-    # ---------- Settings (tucked away) ----------
-    with st.expander("⚙️ Alert settings & notifications"):
-        with st.form("alert_settings"):
-            minimum = st.select_slider("Alert me from this severity up", options=["Moderate", "High", "Critical"],
-                                       value=settings["min_severity"] if settings["min_severity"] != "Low" else "Moderate")
-            categories = st.multiselect("Types of events", list(CATEGORIES), default=settings["categories"])
-            portfolio_only = st.toggle("Only events that affect my portfolio", value=settings["portfolio_only"])
-            desktop = st.toggle("Windows desktop notifications (this PC only)", value=settings["desktop"])                 if user["is_admin"] else settings["desktop"]  # pop-ups only work on the owner's own computer
-            telegram = st.toggle("Telegram messages to my phone", value=settings["telegram"])
-            chat_id = st.text_input("Your Telegram chat ID (optional)", value=settings.get("telegram_chat_id", ""),
-                                    max_chars=20,
-                                    help="Message the Krypton bot on Telegram, then paste the chat ID it gives you. "
-                                         "Lets the bot message YOU.")
-            if st.form_submit_button("💾 Save settings", type="primary"):
-                chat_id = chat_id.strip() if re.fullmatch(r"-?[0-9]{1,20}", chat_id.strip()) else ""
-                save_settings(store, {**settings, "min_severity": minimum, "categories": categories,
-                                       "portfolio_only": portfolio_only, "desktop": desktop, "telegram": telegram,
-                                       "telegram_chat_id": chat_id.strip()})
-                st.success("Saved.")
-        if not os.environ.get("TELEGRAM_BOT_TOKEN"):
-            st.caption("📱 Telegram isn't set up yet: see TELEGRAM_SETUP.md in the WorldWatch folder (about 5 minutes).")
-        st.markdown("Alerts arrive even when this page is closed, as long as the **alert watcher** is running:")
-        st.code("cd C:\\Users\\uri\\Projects\\WorldWatch; python alert_watcher.py", language="bash")
-        if st.button("🔍 Check for changes now"):
-            new = check_for_alerts(state, store, settings)
-            sent = send_notifications(new, settings, desktop_allowed=user["is_admin"])
-            st.success(f"{len(new)} new alert(s)" + (f", sent via {', '.join(sent)}" if sent else "") + ".")
-
-
-# ===========================================================================
 # 📊 TRACK RECORD
 # ===========================================================================
 MIN_EVENTS = 5  # need at least this many SEPARATE past events before judging an event type
@@ -549,8 +429,8 @@ def analyst_tab(state, user):
 # ===========================================================================
 def briefing_tab(state, user):
     st.markdown("### 📰 Daily briefing")
-    st.caption("A 2-minute summary of what changed, the most serious situations, your portfolio and the week's "
-               "biggest market moves. The alert watcher writes one automatically every morning.")
+    st.caption("A 2-minute summary: today's market reading, the most serious world situations, your portfolio "
+               "and the week's biggest market moves. Press the button to write today's.")
     if st.button("📝 Write today's briefing now", type="primary"):
         write_briefing(state, user["store"])
         st.success("Written.")

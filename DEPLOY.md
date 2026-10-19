@@ -2,14 +2,14 @@
 
 When you're done, anyone in the world can open Krypton at a web address like
 `https://krypton-yourname.streamlit.app`, create their own account, and get their own private
-portfolio, alerts and briefings. Nobody can see anyone else's data.
+portfolio and briefings. Nobody can see anyone else's data.
 
 You need 3 free accounts. **Some services require the account holder to be 18+**, so a parent
 may need to create them (like the API key).
 
 | Service | What it does | Cost |
 |---|---|---|
-| **GitHub** (github.com) | Stores Krypton's code, runs the alert checker every 30 min | Free |
+| **GitHub** (github.com) | Stores Krypton's code | Free |
 | **Neon** (neon.tech) | The database: accounts and everyone's private data | Free (0.5 GB) |
 | **Streamlit Community Cloud** (share.streamlit.io) | Runs the website, with HTTPS | Free |
 
@@ -31,8 +31,7 @@ It should say `Copied 1 account(s)...`. Now your username, password and portfoli
 
 ## 3. GitHub: upload the code (5 min)
 1. Sign up at **github.com** → **New repository** → name `krypton` → **Public** → Create.
-   (Public = people can read the code, which is fine: it contains **no** passwords, keys or user data.
-   It also makes the 30-minute alert checker free; private repos only get limited free minutes.)
+   (Public = people can read the code, which is fine: it contains **no** passwords, keys or user data.)
 2. Ask Claude to push the code, or follow GitHub's "push an existing repository" instructions.
    The `.gitignore` file makes sure accounts, portfolios, backups and secrets are **never** uploaded.
 
@@ -45,13 +44,6 @@ It should say `Copied 1 account(s)...`. Now your username, password and portfoli
    ANTHROPIC_API_KEY = "sk-ant-...your API key..."
    ```
 4. **Deploy.** After a few minutes you get your web address. Log in with your usual username and password.
-
-## 5. GitHub: turn on the alert checker (2 min)
-In your GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**:
-- `DATABASE_URL` = the same Neon connection string
-- `TELEGRAM_BOT_TOKEN` = only if you set up the Telegram bot (optional)
-
-Then **Actions** tab → **Krypton alerts** → **Run workflow** to test it once.
 
 ---
 

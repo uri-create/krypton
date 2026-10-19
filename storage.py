@@ -7,7 +7,7 @@
 #
 # Two tables:
 #   users      - username, bcrypt password hash, admin/AI flags (see users.py)
-#   user_data  - each user's private items (portfolio, alert settings, alert history,
+#   user_data  - each user's private items (portfolio,
 #                briefings, "why it moved" answers), stored as JSON, keyed by (user_id, name).
 # Every read and write goes through a UserStore that is locked to ONE user id, so one user's
 # code path can never touch another user's rows.

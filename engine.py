@@ -1,5 +1,5 @@
 # engine.py
-# The "brain" of Krypton, shared by the web app, the background alert watcher and the
+# The "brain" of Krypton, shared by the web app and the
 # daily briefing. It downloads every feed and turns it into one list of EVENTS, each with a
 # category, position, severity and the markets it affects. No web-page code in here.
 
@@ -42,7 +42,7 @@ def fetch_all():
 
 
 def build_state(raw):
-    """Turn raw feeds into everything the app, alerts and briefing need."""
+    """Turn raw feeds into everything the app and briefing need."""
     state = dict(raw)
     state["air_history"] = get_air_history()
     state["statuses"] = chokepoint_status(raw["traffic"])
@@ -56,7 +56,7 @@ def build_state(raw):
 
 def build_events(state):
     """Every icon on the map. Shape = what it is (icon); colour = how severe (severity).
-    Each event also lists the markets it affects (used for portfolio exposure and alerts)."""
+    Each event also lists the markets it affects (used for portfolio exposure)."""
     events = []
     air, air_history = state["air"], state["air_history"]
 

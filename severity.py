@@ -1,5 +1,5 @@
 # severity.py
-# One severity scale for every event in Krypton (map icon colours, alerts, briefings).
+# One severity scale for every event in Krypton (map icon colours, panels, briefings).
 
 from explain_layers import air_hub_status, weather_flags
 

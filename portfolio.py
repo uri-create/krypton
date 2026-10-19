@@ -126,7 +126,7 @@ def past_reactions(backtest, market, rule):
 def exposure(holdings, events, market_prices=None, held_prices=None, backtest=None, min_severity="Moderate"):
     """For each holding: the live events that affect it, with measured facts and research notes.
     Returns {ticker: [link, ...]}, most serious first. Without price data it still finds NAMED links
-    (used by alerts and the briefing)."""
+    (used by the briefing)."""
     result = {}
     for h in holdings:
         links = []

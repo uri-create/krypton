@@ -96,7 +96,7 @@ def login_gate():
                             start_session(user)
                             st.rerun()
                         st.error(error)
-        st.caption("Your portfolio, alerts and briefings are private to your account.")
+        st.caption("Your portfolio and briefings are private to your account.")
         with st.expander("🔒 Privacy notice"):
             st.markdown(PRIVACY_NOTICE)
     st.stop()
@@ -104,7 +104,7 @@ def login_gate():
 
 PRIVACY_NOTICE = """
 **What Krypton stores about you:** only your username, a scrambled (hashed) version of your password,
-and what you add yourself: your portfolio, alert settings, alert history and daily briefings.
+and what you add yourself: your portfolio and daily briefings.
 No email, no real name, no location, no payment details.
 
 **Who can see it:** only you, when logged in. Other users can never see your data. Your password
@@ -140,7 +140,7 @@ def account_tab(user):
         {"label": "Plan", "value": "Admin" if user["is_admin"] else ("Pro" if is_pro(user) else "Free"),
          "explain": "Free = everything except the AI features. Pro = AI features unlocked."},
     ], per_row=3)
-    st.caption(f"Account created {user['created']}. Your portfolio, alerts and briefings are stored privately "
+    st.caption(f"Account created {user['created']}. Your portfolio and briefings are stored privately "
                "and no other user can see them.")
 
     plan_section(user)
@@ -169,7 +169,7 @@ def account_tab(user):
 
     if not user["is_admin"]:
         with st.expander("🗑️ Delete my account"):
-            st.warning("This permanently deletes your account, portfolio, alerts and briefings. "
+            st.warning("This permanently deletes your account, portfolio and briefings. "
                        "A Krypton Pro subscription is cancelled too.")
             sure = st.checkbox("Yes, I understand this can't be undone")
             if st.button("Delete my account", disabled=not sure):

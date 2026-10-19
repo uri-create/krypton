@@ -1,7 +1,7 @@
 # billing.py
 # Krypton Pro: a $14.99/month subscription that unlocks everything that costs YOU money (the AI).
 #
-#   Free for everyone:  live map, event panels, portfolio prices, alerts, track record, briefing.
+#   Free for everyone:  Market Compass, live map, event panels, markets, clusters, portfolio prices, briefing.
 #   Krypton Pro only:   🧠 "Why it moved", 🤖 Ask the analyst, 🔬 Deep research (they use your API key).
 #
 # How paying works (Stripe does all the money and card handling; Krypton never sees card numbers):
@@ -181,7 +181,7 @@ def manage_url(user):
 PRO_FEATURES = ["🧠 **Why it moved**: the real news behind each of your stocks",
                 "🤖 **Ask the analyst**: chat with an AI that sees everything on Krypton",
                 "🔬 **Deep research**: a full sourced report on any event"]
-FREE_FEATURES = "live map, event panels, portfolio prices, alerts, track record and the daily briefing"
+FREE_FEATURES = "Market Compass, live map, markets, clusters, portfolio prices and the daily briefing"
 
 
 def open_pro_page():

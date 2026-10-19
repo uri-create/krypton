@@ -1,48 +1,59 @@
 # markets_tab.py
 # 📈 The Markets page: every market Krypton follows, at a glance.
-#   - Heat map: all ~120 markets grouped by sector, coloured by this month's move
+#   - Heat map: all ~120 markets as rounded tiles grouped by sector, coloured by this month's move
 #   - Biggest movers this week
 #   - Price explorer (any market, last 12 months) + how a whole sector moved
 #   - Every market as a card with its week / month / year moves
 
-import plotly.graph_objects as go
+import html
+
 import streamlit as st
 
 from analysis import describe_move
 from markets import SECTORS
-from panels import chart_key, line_chart, pie_chart, stat_cards, subtitle
+from panels import how_to_read, line_chart, pie_chart, stat_cards, subtitle
+
+
+def _tile_colour(move):
+    """Smooth colour for a move: deeper green the more it rose, deeper red the more it fell."""
+    strength = min(abs(move), 10) / 10
+    if abs(move) < 0.5:
+        return "rgba(255, 255, 255, 0.05)"
+    rgb = "61, 220, 132" if move > 0 else "255, 42, 61"
+    return f"rgba({rgb}, {0.10 + 0.55 * strength:.2f})"
 
 
 def _heat_map(changes):
     subtitle("🗺️ Heat map: every market, this month")
-    labels, parents, colours, texts = [], [], [], []
+    how_to_read(
+        "Each tile is one market, grouped by sector and sorted from best to worst. <b>Green</b> = its price rose "
+        "over the last month, <b>red</b> = it fell; the <b>deeper the colour</b>, the bigger the move (full colour = "
+        "10% or more). The pill next to each sector is that sector's average move. Hover a tile to see its price.")
+    cards = []
     for sector, markets in SECTORS.items():
-        labels.append(sector)
-        parents.append("")
-        colours.append(0)
-        texts.append("")
-        for name in markets:
-            month = (changes.get(name) or {}).get("1 month (%)")
-            if month is None:
-                continue
-            labels.append(name)
-            parents.append(sector)
-            colours.append(max(-15, min(15, month)))
-            texts.append(f"{month:+.1f}%")
-    figure = go.Figure(go.Treemap(
-        labels=labels, parents=parents, text=texts, values=[1] * len(labels), branchvalues="remainder",
-        marker=dict(colors=colours, colorscale=[[0, "#b3001b"], [0.5, "#1a1418"], [1, "#0f9d58"]], cmid=0,
-                    line=dict(color="#060608", width=2)),
-        texttemplate="<b>%{label}</b><br>%{text}", hovertemplate="%{label}: %{text}<extra></extra>",
-        textfont=dict(family="Inter, sans-serif", color="#ffffff"), tiling=dict(pad=3)))
-    figure.update_layout(height=560, margin=dict(l=0, r=0, t=0, b=0), paper_bgcolor="rgba(0,0,0,0)")
-    st.plotly_chart(figure, width="stretch", key=chart_key("heatmap"))
-    st.caption("ⓘ Each box is one market, grouped by sector. Green = up over the last month, red = down; the "
-               "stronger the colour, the bigger the move. Click a sector to zoom in, click its title to zoom out.")
+        rows = [(name, changes[name]) for name in markets
+                if name in changes and changes[name].get("1 month (%)") is not None]
+        if not rows:
+            continue
+        rows.sort(key=lambda r: -r[1]["1 month (%)"])
+        average = sum(c["1 month (%)"] for _, c in rows) / len(rows)
+        tiles = "".join(
+            f"<div class='tile' style='background:{_tile_colour(c['1 month (%)'])}' "
+            f"title='{html.escape(name)}: {c['Price']:,.2f} ({c['1 month (%)']:+.1f}% this month)'>"
+            f"<span class='tile-name'>{html.escape(name)}</span>"
+            f"<span class='tile-move'>{c['1 month (%)']:+.1f}%</span></div>" for name, c in rows)
+        tone = "good" if average >= 0 else "bad"
+        cards.append(f"<div class='heat-sector'><div class='heat-head'><span>{html.escape(sector)}</span>"
+                     f"<span class='stat-delta {tone}'>{average:+.1f}% avg</span></div>"
+                     f"<div class='heat-tiles'>{tiles}</div></div>")
+    legend = ("<div class='heat-legend'><span>−10%</span><div class='heat-scale'></div><span>+10%</span></div>")
+    st.markdown(f"{legend}<div class='heat-grid'>{''.join(cards)}</div>", unsafe_allow_html=True)
 
 
 def _movers(changes):
     subtitle("⚡ Biggest movers this week")
+    how_to_read("The markets whose price changed the most over the last <b>5 trading days</b>, up and down. "
+                "Big weekly moves usually follow news: check the 🌍 World map for events that touch them.")
     weekly = sorted(((name, c["1 week (%)"]) for name, c in changes.items() if c.get("1 week (%)") is not None),
                     key=lambda kv: kv[1])
     if not weekly:
@@ -61,12 +72,12 @@ def _movers(changes):
                      "explain": f"Price now {changes[name]['Price']:,.2f}. This month: "
                                 f"{describe_move(changes[name]['1 month (%)'])}."}
                     for name, move in weekly[:4]], per_row=2)
-    st.caption("ⓘ The change in price over the last 5 trading days. Big weekly moves often follow news: "
-               "check the 🌍 World map for events that touch these markets.")
 
 
 def _explorer(prices, changes):
     subtitle("🔎 Explore a market")
+    how_to_read("Pick a sector and a market to see its daily price over the last year. The ring on the right shows "
+                "how many markets in that sector went up, went down or stayed flat this month.")
     left, right = st.columns([3, 2])
     with left:
         a, b = st.columns(2)
@@ -88,8 +99,8 @@ def _explorer(prices, changes):
 
 def _all_markets(changes):
     subtitle("📋 Every market, sector by sector")
-    st.caption("Each card shows a market's latest price, how much it moved this month (green = up, red = down), "
-               "and its moves over the last week and year.")
+    how_to_read("Each card shows a market's <b>latest price</b> (big number), its move <b>this month</b> (green = up, "
+                "red = down) and its moves over the last week and year.")
     for tab, sector in zip(st.tabs(list(SECTORS)), SECTORS):
         with tab:
             cards = []

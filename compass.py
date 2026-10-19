@@ -1,15 +1,15 @@
 # compass.py
-# 🧭 The Market Compass: today's "market weather" for the US stock market (S&P 500).
+# 🧭 The Market Compass: is the US stock market (S&P 500) BULLISH, NEUTRAL or BEARISH right now?
 #
 # It is NOT advice and NOT a promise. It combines six well-known, measurable market signals into
-# one score from -100 (stormy) to +100 (calm uptrend), then looks up, on ~18 years of real history,
+# one score from -100 (bearish) to +100 (bullish), then looks up, on ~18 years of real history,
 # what happened over the next month after readings like today's: how often the market rose, the
 # typical range, and how often it fell 5% or 10% along the way.
 #
 # What 18 years of data showed (honestly):
-#   - It does NOT reliably predict up vs down. Markets often bounce after stormy readings.
+#   - It does NOT reliably predict up vs down. Markets often bounce after bearish readings.
 #   - It DOES predict how rough the next month will be: big drops were about 7x more common
-#     after stormy readings than after calm ones, and daily swings were twice as large.
+#     after bearish readings than after bullish ones, and daily swings were twice as large.
 #
 # The six signals (each scored from -1 to +1, using only data available on that day):
 #   1. Trend        S&P 500 vs its 200-day average (above = healthy uptrend)
@@ -35,7 +35,7 @@ CODES = {"S&P 500": "^GSPC", "VIX": "^VIX", "VIX 3-month": "^VIX3M", "Risky bond
          "Safe bonds (IEF)": "IEF", "Copper": "HG=F", "Gold": "GC=F", **{code: code for code in SECTOR_FUNDS}}
 
 HORIZON = 21          # trading days ahead we check (about one month)
-LEAN = 25             # above +25 = "Calm uptrend", below -25 = "Stormy", in between = "Choppy"
+LEAN = 25             # above +25 = "Bullish", below -25 = "Bearish", in between = "Neutral"
 
 SIGNALS = {
     "Trend": {"icon": "📈", "what": "Is the S&P 500 above its 200-day average price?",
@@ -89,21 +89,21 @@ def signals(history):
 
 
 READINGS = {
-    "Calm uptrend": {"icon": "☀️", "colour": "#3ddc84",
-                     "meaning": "Most signals are positive: the market is rising steadily and investors are calm."},
-    "Choppy": {"icon": "⛅", "colour": "#ffb000",
+    "Bullish": {"icon": "🐂", "colour": "#3ddc84", "range": "+25 to +100",
+                "meaning": "Most signals are positive: prices are rising and investors are confident."},
+    "Neutral": {"icon": "⚖️", "colour": "#ffb000", "range": "−25 to +25",
                "meaning": "Signals disagree: expect a bumpier ride than usual, without a clear direction."},
-    "Stormy": {"icon": "⛈️", "colour": "#ff2a3d",
+    "Bearish": {"icon": "🐻", "colour": "#ff2a3d", "range": "−100 to −25",
                "meaning": "Most signals are negative: the market is falling or nervous, and big swings are likely."},
 }
 
 
 def reading(score):
     if score >= LEAN:
-        return "Calm uptrend"
+        return "Bullish"
     if score <= -LEAN:
-        return "Stormy"
-    return "Choppy"
+        return "Bearish"
+    return "Neutral"
 
 
 def backtest(history, scores):
@@ -160,7 +160,7 @@ def summary_line(compass):
         return None
     name = reading(compass["today"]["Score"])
     odds, normal = compass["test"]["by_reading"][name], compass["test"]["all"]
-    return (f"Market weather (S&P 500): {READINGS[name]['icon']} {name} (score {compass['today']['Score']:+.0f} of ±100). "
+    return (f"Market reading (S&P 500): {READINGS[name]['icon']} {name} (score {compass['today']['Score']:+.0f} of ±100). "
             f"After readings like this, the market was higher a month later {odds['up']:.0f}% of the time "
             f"(normal {normal['up']:.0f}%), and fell 10%+ during the month {odds['dip10']:.0f}% of the time "
             f"(normal {normal['dip10']:.0f}%). Good at warning about rough months, not at calling up or down.")

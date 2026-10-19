@@ -1,12 +1,10 @@
 # briefing.py
 # The DAILY BRIEFING: a 2-minute "what's going on in the world and my portfolio" report.
-# Written each morning by the alert watcher (or on demand in the app), saved in each user's
+# Written on demand in the app (📰 Daily briefing tab) and saved in each user's
 # private storage. If an API key is set up, the AI can polish it into an analyst-style note.
 
 import datetime as dt
-import os
 
-from alerts import load_log
 from backtest import load_results, summarise
 from markets import SECTORS
 from portfolio import exposure, load_portfolio
@@ -50,15 +48,6 @@ def build_briefing_text(state, store):
     weather = summary_line(state.get("compass"))
     if weather:
         lines[lines.index("## At a glance") + 1:lines.index("## At a glance") + 1] = [f"- 🧭 {weather}"]
-
-    # --- What changed in the last 24 hours
-    since = now - dt.timedelta(hours=24)
-    recent = [a for a in load_log(store) if dt.datetime.strptime(a["time"], "%Y-%m-%d %H:%M") >= since]
-    lines.append("## What changed in the last 24 hours")
-    lines += [f"- {a['change']} **{a['event']}** ({a['category']}): now {a['severity']}"
-              + (f" (was {a['was']})" if a["was"] and a["was"] != a["severity"] else "") for a in recent[:12]] \
-        or ["- No new or escalated events (or the alert watcher wasn't running)."]
-    lines.append("")
 
     # --- The most serious situations
     lines.append("## The most serious situations")
