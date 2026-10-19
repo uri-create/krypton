@@ -57,9 +57,10 @@ def bullets(items):
     st.markdown("\n".join(f"- {item}" for item in items) if items else "_Nothing to report._")
 
 
-def how_to_read(text, title="How to read this"):
-    """A small, calm explainer box under a section heading: what the section shows and how to read it."""
-    st.markdown(f"<div class='howto'><div class='howto-title'>ⓘ {title}</div>{text}</div>", unsafe_allow_html=True)
+def how_to_read(text, title=None):
+    """A short, calm line under a section heading saying what the section shows and how to read it."""
+    heading = f"<b>{title}</b> " if title else ""
+    st.markdown(f"<div class='howto'>{heading}{text}</div>", unsafe_allow_html=True)
 
 
 def stat_cards(cards, per_row=2):

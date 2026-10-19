@@ -3,7 +3,6 @@
 #   - Heat map: all ~120 markets as rounded tiles grouped by sector, coloured by this month's move
 #   - Biggest movers this week
 #   - Price explorer (any market, last 12 months) + how a whole sector moved
-#   - Every market as a card with its week / month / year moves
 
 import html
 
@@ -25,10 +24,8 @@ def _tile_colour(move):
 
 def _heat_map(changes):
     subtitle("🗺️ Heat map: every market, this month")
-    how_to_read(
-        "Each tile is one market, grouped by sector and sorted from best to worst. <b>Green</b> = its price rose "
-        "over the last month, <b>red</b> = it fell; the <b>deeper the colour</b>, the bigger the move (full colour = "
-        "10% or more). The pill next to each sector is that sector's average move. Hover a tile to see its price.")
+    how_to_read("Every market Krypton follows, grouped by sector. <b>Green</b> = up this month, <b>red</b> = down. "
+                "The deeper the colour, the bigger the move.")
     cards = []
     for sector, markets in SECTORS.items():
         rows = [(name, changes[name]) for name in markets
@@ -52,8 +49,7 @@ def _heat_map(changes):
 
 def _movers(changes):
     subtitle("⚡ Biggest movers this week")
-    how_to_read("The markets whose price changed the most over the last <b>5 trading days</b>, up and down. "
-                "Big weekly moves usually follow news: check the 🌍 World map for events that touch them.")
+    how_to_read("The biggest price changes over the last 5 trading days.")
     weekly = sorted(((name, c["1 week (%)"]) for name, c in changes.items() if c.get("1 week (%)") is not None),
                     key=lambda kv: kv[1])
     if not weekly:
@@ -76,8 +72,7 @@ def _movers(changes):
 
 def _explorer(prices, changes):
     subtitle("🔎 Explore a market")
-    how_to_read("Pick a sector and a market to see its daily price over the last year. The ring on the right shows "
-                "how many markets in that sector went up, went down or stayed flat this month.")
+    how_to_read("Pick any market to see its price over the last year.")
     left, right = st.columns([3, 2])
     with left:
         a, b = st.columns(2)
@@ -97,29 +92,10 @@ def _explorer(prices, changes):
                        "flat over the last month.")
 
 
-def _all_markets(changes):
-    subtitle("📋 Every market, sector by sector")
-    how_to_read("Each card shows a market's <b>latest price</b> (big number), its move <b>this month</b> (green = up, "
-                "red = down) and its moves over the last week and year.")
-    for tab, sector in zip(st.tabs(list(SECTORS)), SECTORS):
-        with tab:
-            cards = []
-            for name in [m for m in SECTORS[sector] if m in changes]:
-                c = changes[name]
-                month = c["1 month (%)"]
-                cards.append({"label": name, "value": f"{c['Price']:,.2f}",
-                              "delta": f"{month:+.1f}% this month" if month is not None else None,
-                              "tone": "bad" if (month or 0) < 0 else "good",
-                              "explain": f"Last week: {describe_move(c['1 week (%)'])} · "
-                                         f"last year: {describe_move(c['1 year (%)'])}."})
-            stat_cards(cards, per_row=4)
-
-
 def markets_tab(state):
     st.markdown("### 📈 Markets")
-    st.caption("Energy, shipping, airlines, defence, food, metals, tech and more: about 120 markets that react to "
-               "world events. Prices are daily closes from Yahoo Finance.")
+    st.markdown("<div class='lead'>About 120 markets that react to world events: oil, shipping, airlines, defence, "
+                "food, metals, tech and more.</div>", unsafe_allow_html=True)
     _heat_map(state["changes"])
     _movers(state["changes"])
     _explorer(state["prices"], state["changes"])
-    _all_markets(state["changes"])

@@ -145,8 +145,8 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
                 border-left: 3px solid var(--red); padding-left: 10px; }}
 .badge {{ display: inline-block; padding: 3px 11px; border: 1px solid; border-radius: 999px;
           font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }}
-.section {{ color: #ff8a95; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
-            margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }}
+.section {{ color: var(--text); font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1.12rem;
+            font-weight: 600; margin: 30px 0 6px; display: flex; align-items: center; gap: 8px; }}
 
 /* Number cards that explain themselves (panels.stat_cards) */
 .stat {{ background: rgba(255, 255, 255, 0.025); border: 1px solid var(--line); border-radius: 14px;
@@ -161,6 +161,10 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .stat-delta.good {{ background: rgba(61, 220, 132, 0.12); color: #5ee39a; }}
 .stat-explain {{ color: #a3a3ae; font-size: 0.8rem; line-height: 1.45; margin-top: 8px;
                  border-top: 1px solid var(--line); padding-top: 8px; }}
+
+.hud-right {{ margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
+.hud-pill {{ border: 1px solid; border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: 0.9rem; }}
+.hud-user {{ color: var(--muted); font-size: 0.85rem; }}
 
 /* Market Compass hero */
 .hero {{ border: 1px solid var(--line); border-radius: 20px; padding: 22px 26px 18px; margin: 6px 0 14px;
@@ -189,9 +193,7 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .ktable tr:hover td {{ background: rgba(255, 42, 61, 0.04); }}
 
 /* "How to read this" explainer boxes */
-.howto {{ border-left: 2px solid rgba(255, 42, 61, 0.55); background: rgba(255, 255, 255, 0.025);
-          border-radius: 0 12px 12px 0; padding: 10px 14px; margin: 2px 0 14px; color: #b4b4be;
-          font-size: 0.86rem; line-height: 1.55; }}
+.howto {{ color: #9a9aa6; font-size: 0.88rem; line-height: 1.55; margin: 0 0 14px; max-width: 860px; }}
 .howto b {{ color: #e9e9ee; font-weight: 600; }}
 .howto-title {{ color: #ff8a95; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.12em;
                 text-transform: uppercase; margin-bottom: 4px; }}
@@ -245,6 +247,29 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .chip {{ font-size: 0.74rem; color: #c9c9d1; padding: 4px 10px; border-radius: 999px;
          background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }}
 .chip-anchor {{ color: #fff; border-color: rgba(255, 42, 61, 0.5); background: rgba(255, 42, 61, 0.12); }}
+
+/* Simple page pieces */
+.lead {{ color: #c4c4cc; font-size: 1.02rem; line-height: 1.6; max-width: 820px; margin: 2px 0 10px; }}
+.signal-list, .pair-list, .buddies {{ display: flex; flex-direction: column; gap: 8px; }}
+.signal-row {{ display: grid; grid-template-columns: 150px 120px 1fr; align-items: center; gap: 14px;
+               padding: 12px 16px; border-radius: 14px; background: rgba(255, 255, 255, 0.025);
+               border: 1px solid var(--line); }}
+.signal-row .stat-delta {{ margin-top: 0; text-align: center; }}
+.signal-name {{ color: var(--text); font-weight: 600; }}
+.signal-text {{ color: #a3a3ae; font-size: 0.88rem; }}
+@media (max-width: 760px) {{ .signal-row {{ grid-template-columns: 1fr; gap: 6px; }} }}
+.pair-row {{ display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 16px;
+             border-radius: 12px; background: rgba(255, 255, 255, 0.025); border: 1px solid var(--line);
+             color: var(--text); font-size: 0.9rem; }}
+.pair-pct {{ color: var(--muted); font-size: 0.85rem; }}
+.pair-pct b {{ color: var(--text); }}
+.buddy {{ display: grid; grid-template-columns: minmax(140px, 240px) 1fr 52px; align-items: center; gap: 14px;
+          padding: 8px 4px; }}
+.buddy-name {{ color: var(--text); font-size: 0.9rem; }}
+.buddy-bar {{ height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); overflow: hidden; }}
+.buddy-bar > div {{ height: 100%; border-radius: 999px; background: linear-gradient(90deg, #8b0a1a, var(--red)); }}
+.buddy-pct {{ color: var(--text); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }}
+.chip-more {{ color: var(--muted); border-style: dashed; }}
 
 /* Slim dark scrollbars */
 ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
@@ -303,26 +328,21 @@ events = state["events"]
 # ===========================================================================
 # HUD STATUS BAR
 # ===========================================================================
-disrupted = sum(1 for s in statuses if s["Status"] == "Disrupted")
-active_conflicts = sum(1 for level in conflict_levels.values() if level in ("High", "Elevated"))
-red_alerts = sum(1 for d in disasters if d["alert"] == "Red")
-planes = f"{air['total_planes']:,}" if air else "—"
-weather_html = ""
+reading_html = ""
 if state.get("compass"):
     _name = reading(state["compass"]["today"]["Score"])
-    weather_html = (f'<div class="hud-item">Market reading<b style="color:{READINGS[_name]["colour"]}">'
-                    f'{READINGS[_name]["icon"]} {_name}</b></div>')
+    _colour = READINGS[_name]["colour"]
+    reading_html = (f'<div class="hud-pill" style="color:{_colour};border-color:{_colour}55;background:{_colour}14">'
+                    f'{READINGS[_name]["icon"]} Market is {_name.lower()}</div>')
 st.markdown(f"""
 <div class="hud">
   <div class="hud-title">KRYPTON</div>
   <div class="live">LIVE</div>
-  <div class="hud-tag">CLASSIFIED // GLOBAL SITUATION MONITOR</div>
-  {weather_html}
-  <div class="hud-item">Chokepoints disrupted<b style="color:{RED}">{disrupted} / {len(statuses)}</b></div>
-  <div class="hud-item">Active conflicts<b style="color:{RED}">{active_conflicts}</b></div>
-  <div class="hud-item">Red disaster alerts<b style="color:{AMBER}">{red_alerts}</b></div>
-  <div class="hud-item">Aircraft tracked<b>{planes}</b></div>
-  <div class="hud-item">Operator<b>{html.escape(user['username'])}{' · admin' if user['is_admin'] else ''}</b></div>
+  <div class="hud-tag">CLASSIFIED // MARKET INTELLIGENCE</div>
+  <div class="hud-right">
+    {reading_html}
+    <div class="hud-user">👤 {html.escape(user['username'])}{' · admin' if user['is_admin'] else ''}</div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 st.caption("For learning and research only. Not financial advice.")
@@ -330,7 +350,7 @@ st.caption("For learning and research only. Not financial advice.")
 # ===========================================================================
 # MAIN TABS
 # ===========================================================================
-main_tabs = st.tabs(["🧭 Market Compass", "🌍 World map", "📈 Markets", "🧬 Clusters", "💼 My portfolio",
+main_tabs = st.tabs(["🧭 Market Compass", "🌍 World map", "📈 Markets", "🧬 Teams", "💼 My portfolio",
                      "🤖 Ask the analyst", "📰 Daily briefing", "👤 Account"])
 
 
@@ -440,14 +460,7 @@ def map_and_panel():
 def shipping_trends():
     """Shipping details under the map. Changing the dropdown redraws only this part."""
     st.session_state["_chart_n"] = 5_000
-    st.markdown("### 🚢 Chokepoints at a glance")
-    st.caption("Each row is one of the world's key shipping routes. 'Ships/day' = average number of ships passing "
-               "through each day; the % columns compare that with normal (the last 3 months) and with a year ago. "
-               "Status sums it up: Normal, Below normal, Disrupted or Unusually busy.")
-    st.dataframe([{"": STATUS_STYLE[s["Status"]]["emoji"], **{k: v for k, v in s.items() if k != "Data up to"}}
-                  for s in statuses], hide_index=True, width="stretch")
-
-    st.markdown("### 🔍 Compare shipping routes")
+    st.markdown("### 🚢 Shipping routes")
     problem_first = sorted(statuses, key=lambda s: list(STATUS_STYLE).index(s["Status"]))
     left, right = st.columns([3, 2])
     with left:

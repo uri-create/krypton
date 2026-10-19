@@ -1,14 +1,15 @@
 # clusters.py
-# 🧬 Market CLUSTERS: which markets move together?
+# 🧬 Market TEAMS: which markets move together?
 #
-# For every pair of markets Krypton follows, we measure how alike their daily ups and downs were over
-# the last year (the "correlation": +1 = always move the same way, 0 = unrelated, -1 = opposite ways).
-# Then markets are grouped step by step: the two most alike groups are joined, again and again, until
-# the next join would put together markets that are only loosely related. What's left are CLUSTERS:
-# families of markets that tend to rise and fall together.
+# For every pair of markets Krypton follows, we compare their daily ups and downs over the last year.
+# Markets that keep moving the same way are put in the same TEAM (e.g. oil companies + the oil price).
 #
-#   - Market-wide clusters: across all sectors (e.g. oil companies + oil prices + Canadian oil sands)
-#   - Sub-clusters: the same idea inside each sector (e.g. inside Energy: oil vs. natural gas)
+# How it works (simply): we measure how alike each pair's daily moves were (their "correlation":
+# +1 = always move the same way, 0 = unrelated). Then the two most alike groups are joined, again
+# and again, until the next join would put together markets that are only loosely related.
+#
+# For people, every link is shown as an easy number instead: "they moved the same direction on
+# 78% of days" (two unrelated markets land around 50%).
 #
 # Pure calculation, no web-page code (see clusters_tab.py for the page).
 
@@ -20,17 +21,30 @@ from markets import SECTOR_OF
 TOGETHER = 0.5      # join groups only while their markets' average correlation is at least this
 MIN_DAYS = 120      # a market needs this many days of prices to be included
 
+# Friendly team names, from the sector most of the team comes from
+TEAM_NAMES = {"Energy": "Oil & energy", "Shipping": "Shipping", "Airlines & logistics": "Travel & freight",
+              "Autos": "Car makers", "Defence & aerospace": "Defence", "Insurance & rebuilding": "Insurers",
+              "Agriculture & food": "Farm & food", "Metals & mining": "Metals & mining",
+              "Semiconductors & tech": "Chips & tech", "Countries & indexes": "World stock markets",
+              "Fear & safe havens": "Safe havens", "Utilities": "Power & utilities"}
 
-def correlations(prices):
-    """How alike each pair of markets' daily moves were (pairs compared on days both traded)."""
+
+def daily_moves(prices):
     returns = prices.pct_change(fill_method=None)
-    returns = returns.loc[:, returns.count() >= MIN_DAYS]
-    return returns.corr(min_periods=MIN_DAYS)
+    return returns.loc[:, returns.count() >= MIN_DAYS]
+
+
+def same_direction(moves, a, b):
+    """Share of days (when both traded and both moved) that two markets went the same way, in %."""
+    both = moves[[a, b]].dropna()
+    both = both[(both[a] != 0) & (both[b] != 0)]
+    if len(both) < 30:
+        return None
+    return float((np.sign(both[a]) == np.sign(both[b])).mean() * 100)
 
 
 def group(corr, threshold=TOGETHER):
-    """Average-linkage clustering: keep joining the two most alike groups while they're alike enough.
-    Returns a list of groups (lists of market names), biggest first."""
+    """Keep joining the two most alike groups while they're alike enough. Biggest groups first."""
     names = list(corr.columns)
     matrix = corr.fillna(0).to_numpy()
     groups = [[i] for i in range(len(names))]
@@ -46,41 +60,53 @@ def group(corr, threshold=TOGETHER):
         a, b = pair
         groups[a] = groups[a] + groups[b]
         del groups[b]
-    result = [[names[i] for i in g] for g in groups]
-    return sorted(result, key=len, reverse=True)
+    return sorted([[names[i] for i in g] for g in groups], key=len, reverse=True)
 
 
-def describe(members, corr, changes):
-    """Facts about one cluster: its 'anchor' (the most typical member), how tightly it moves together,
-    which sectors it spans, and how it moved this month."""
+def team_name(sector):
+    plain = sector.split(" ", 1)[-1]
+    return f"{TEAM_NAMES.get(plain, plain)} team"
+
+
+def describe(members, corr, moves, changes):
+    """Facts about one team, in plain numbers."""
     sub = corr.loc[members, members]
-    if len(members) > 1:
-        off_diagonal = sub.where(~np.eye(len(members), dtype=bool))
-        cohesion = float(np.nanmean(off_diagonal.to_numpy()))
-        anchor = off_diagonal.mean().idxmax()
-    else:
-        cohesion, anchor = 1.0, members[0]
+    anchor = sub.mean().idxmax()  # the most typical member: most alike to all the others
+    pairs = [same_direction(moves, a, b) for i, a in enumerate(members) for b in members[i + 1:]]
+    pairs = [p for p in pairs if p is not None]
     sectors = pd.Series([SECTOR_OF.get(m, "Other") for m in members]).value_counts()
-    moves = [changes[m]["1 month (%)"] for m in members if changes.get(m, {}).get("1 month (%)") is not None]
-    return {"members": sorted(members, key=lambda m: -sub[m].mean() if len(members) > 1 else 0),
-            "anchor": anchor, "cohesion": cohesion, "sectors": sectors.to_dict(),
-            "month": float(np.mean(moves)) if moves else None}
+    month = [changes[m]["1 month (%)"] for m in members if changes.get(m, {}).get("1 month (%)") is not None]
+    main = sectors.index[0]
+    return {"members": sorted(members, key=lambda m: -sub[m].mean()), "anchor": anchor,
+            "together": float(np.mean(pairs)) if pairs else None, "main_sector": main,
+            "name": team_name(main), "icon": main.split(" ", 1)[0], "mixed": len(sectors) > 1,
+            "sectors": sectors.to_dict(), "month": float(np.mean(month)) if month else None}
 
 
 def build(prices, changes):
-    """Everything the Clusters page needs."""
-    from markets import SECTORS
-    corr = correlations(prices)
-    market_wide = [describe(g, corr, changes) for g in group(corr)]
-    sectors = {}
-    for sector, markets in SECTORS.items():
-        names = [m for m in markets if m in corr.columns]
-        if len(names) < 2:
-            continue
-        inner = corr.loc[names, names]
-        off = inner.where(~np.eye(len(names), dtype=bool))
-        subs = [describe(g, corr, changes) for g in group(inner)]
-        order = [m for s in subs for m in s["members"]]  # cluster order, so related markets sit side by side
-        sectors[sector] = {"cohesion": float(np.nanmean(off.to_numpy())), "subclusters": subs,
-                           "matrix": corr.loc[order, order]}
-    return {"corr": corr, "market_wide": market_wide, "sectors": sectors}
+    """Everything the Teams page needs."""
+    moves = daily_moves(prices)
+    corr = moves.corr(min_periods=MIN_DAYS)
+    groups = group(corr)
+    described = [describe(g, corr, moves, changes) for g in groups if len(g) > 1]
+    teams = [t for t in described if len(t["members"]) >= 3]
+    pairs = [t for t in described if len(t["members"]) == 2]
+    # Two teams from the same sector get told apart by their leading member
+    seen = {}
+    for t in teams:
+        seen[t["name"]] = seen.get(t["name"], 0) + 1
+    for t in teams:
+        if seen[t["name"]] > 1:
+            t["name"] = f"{t['name']} · {t['anchor']}"
+    loners = [g[0] for g in groups if len(g) == 1]
+    team_of = {m: t for t in teams + pairs for m in t["members"]}
+    return {"moves": moves, "corr": corr, "teams": teams, "pairs": pairs, "loners": loners, "team_of": team_of}
+
+
+def buddies(data, market, limit=5):
+    """The markets that move most like this one, with the share of days they moved the same way."""
+    corr, moves = data["corr"], data["moves"]
+    if market not in corr:
+        return []
+    closest = corr[market].drop(market).dropna().sort_values(ascending=False).head(limit)
+    return [(other, same_direction(moves, market, other)) for other in closest.index]
