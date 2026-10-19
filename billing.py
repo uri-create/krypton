@@ -180,8 +180,9 @@ def manage_url(user):
 # ---------------------------------------------------------------------------
 PRO_FEATURES = ["**Why it moved**: the real news behind each of your stocks",
                 "**Ask the analyst**: chat with an AI that sees everything on Krypton",
-                "**Deep research**: a full sourced report on any event"]
-FREE_FEATURES = "Market Compass, live map, markets, clusters, portfolio prices and the daily briefing"
+                "**Deep research**: a full sourced report on any event",
+                "**Plain-English company profiles** in Universal search"]
+FREE_FEATURES = "Market Compass, Universal search, live map, markets, clusters, portfolio prices and the daily briefing"
 
 
 def open_pro_page():

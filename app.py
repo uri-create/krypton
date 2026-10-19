@@ -23,6 +23,7 @@ from globe import krypton_globe, to_event_id
 from layers import AIR_HUBS, AIR_ROUTES, CATEGORIES, SEA_ROUTES
 from live_data import get_state
 from markets_tab import markets_tab, sector_page
+from research_tab import research_tab
 from panels import (SEVERITY, line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
                     render_rough)
 from storage import MISCONFIGURED
@@ -276,6 +277,16 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .buddy-pct {{ color: var(--text); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }}
 .chip-more {{ color: var(--muted); border-style: dashed; }}
 
+/* Universal search */
+.research-head {{ margin: 14px 0 4px; }}
+.research-name {{ color: var(--text); font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1.9rem;
+                  font-weight: 700; line-height: 1.2; }}
+.research-ticker {{ color: #ff8a95; font-size: 1rem; font-weight: 600; margin-left: 8px; padding: 3px 10px;
+                    border: 1px solid var(--line-red); border-radius: 999px; vertical-align: middle; }}
+.research-price {{ color: var(--text); font-size: 1.3rem; font-weight: 600; margin-top: 8px;
+                   font-variant-numeric: tabular-nums; }}
+.research-price .stat-delta {{ margin-left: 8px; vertical-align: middle; }}
+
 /* Slim dark scrollbars */
 ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
 ::-webkit-scrollbar-thumb {{ background: rgba(255, 42, 61, 0.25); border-radius: 8px; }}
@@ -359,7 +370,7 @@ if st.session_state.get("sector_view"):  # "View all" was pressed: show that sec
 # ===========================================================================
 # MAIN TABS
 # ===========================================================================
-main_tabs = st.tabs(["Market Compass", "World map", "Markets", "Clusters", "My portfolio",
+main_tabs = st.tabs(["Market Compass", "Universal search", "World map", "Markets", "Clusters", "My portfolio",
                      "Ask the analyst", "Daily briefing", "Account"], default=st.session_state.pop("return_tab", None))
 
 
@@ -374,17 +385,19 @@ def as_fragment(tab_function, chart_base):
 
 with main_tabs[0]:
     as_fragment(compass_tab, 70_000)(state, user)
-with main_tabs[2]:
-    as_fragment(markets_tab, 80_000)(state)
+with main_tabs[1]:
+    as_fragment(research_tab, 90_000)(state, user)
 with main_tabs[3]:
-    as_fragment(clusters_tab, 20_000)(state)
+    as_fragment(markets_tab, 80_000)(state)
 with main_tabs[4]:
-    as_fragment(portfolio_tab, 10_000)(state, user)
+    as_fragment(clusters_tab, 20_000)(state)
 with main_tabs[5]:
-    as_fragment(analyst_tab, 40_000)(state, user)
+    as_fragment(portfolio_tab, 10_000)(state, user)
 with main_tabs[6]:
-    as_fragment(briefing_tab, 50_000)(state, user)
+    as_fragment(analyst_tab, 40_000)(state, user)
 with main_tabs[7]:
+    as_fragment(briefing_tab, 50_000)(state, user)
+with main_tabs[8]:
     as_fragment(account_tab, 60_000)(user)
 
 
@@ -485,7 +498,7 @@ def shipping_trends():
                   note="Tankers carry oil & gas, container ships carry goods, bulk carriers carry grain, coal and ore.")
 
 
-with main_tabs[1]:
+with main_tabs[2]:
     map_and_panel()
     # ===========================================================================
     # BRIEFING
