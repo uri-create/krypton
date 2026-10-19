@@ -22,7 +22,7 @@ from explain_layers import air_hub_status
 from globe import krypton_globe, to_event_id
 from layers import AIR_HUBS, AIR_ROUTES, CATEGORIES, SEA_ROUTES
 from live_data import get_state
-from markets_tab import markets_tab
+from markets_tab import markets_tab, sector_page
 from panels import (SEVERITY, line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
                     render_rough)
 from storage import MISCONFIGURED
@@ -229,6 +229,9 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .tile:hover {{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); }}
 .tile-ticker {{ color: #fff; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.03em; }}
 .heat-other {{ background: rgba(255, 255, 255, 0.015); }}
+.grid3 {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }}
+.grid3 .tile {{ min-height: 86px; }}
+.tile-cap {{ color: #a9a9b3; font-size: 0.68rem; font-variant-numeric: tabular-nums; }}
 .tile-name {{ color: #d0d0d8; font-size: 0.7rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis;
               display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
 .tile-move {{ color: #fff; font-weight: 700; font-size: 0.92rem; font-variant-numeric: tabular-nums;
@@ -349,11 +352,15 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 st.caption("For learning and research only. Not financial advice.")
 
+if st.session_state.get("sector_view"):  # "View all" was pressed: show that sector's full company list instead
+    sector_page(state)
+    st.stop()
+
 # ===========================================================================
 # MAIN TABS
 # ===========================================================================
 main_tabs = st.tabs(["Market Compass", "World map", "Markets", "Clusters", "My portfolio",
-                     "Ask the analyst", "Daily briefing", "Account"])
+                     "Ask the analyst", "Daily briefing", "Account"], default=st.session_state.pop("return_tab", None))
 
 
 def as_fragment(tab_function, chart_base):

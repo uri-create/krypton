@@ -28,13 +28,24 @@ def _air():
 
 def _weather():
     try:
-        return get_weather(CHOKEPOINTS, marine=True), get_weather(AIR_HUBS)
+        with ThreadPoolExecutor(max_workers=2) as pool:  # sea and airport weather side by side
+            sea = pool.submit(get_weather, CHOKEPOINTS, True)
+            hubs = pool.submit(get_weather, AIR_HUBS)
+            return sea.result(), hubs.result()
     except Exception:
         return {}, {}
 
 
 def _conflict_news():
     return get_many_headlines({name: zone["news"] for name, zone in CONFLICT_ZONES.items()})
+
+
+def _universe():
+    try:
+        from universe import download
+        return download()
+    except Exception:  # the rest of Krypton still works without it
+        return None
 
 
 def _compass():
@@ -54,6 +65,7 @@ FEEDS = {
     "weather": (_weather, 30 * MINUTE),
     "conflict_news": (_conflict_news, HOUR),
     "compass": (_compass, HOUR),
+    "universe": (_universe, 15 * MINUTE),
 }
 
 _copies = {}        # name -> (time downloaded, data)
@@ -117,5 +129,6 @@ def get_state():
                                        "prices": raw["prices"], "air": raw["air"], "sea_weather": sea_weather,
                                        "hub_weather": hub_weather, "conflict_news": raw["conflict_news"]})
         _built["state"]["compass"] = raw["compass"]
+        _built["state"]["universe"] = raw["universe"]
         _built["version"] = current
     return _built["state"]
