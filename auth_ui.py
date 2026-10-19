@@ -5,6 +5,7 @@ import secrets
 
 import streamlit as st
 
+from billing import cancel_subscription, is_pro, month_spend, plan_section
 from users import (all_users, any_users, change_password, create_account, delete_account, get_user, log_in,
                    set_ai_allowed)
 
@@ -78,8 +79,10 @@ No email, no real name, no location, no payment details.
 is stored as a one-way hash, so nobody, not even the person running Krypton, can read it.
 The person running Krypton could technically open the database, as with any website.
 
-**AI features:** if switched on for you, your questions and your list of stocks are sent to
-Anthropic's AI to write the answers.
+**AI features (Krypton Pro):** when you use them, your questions and your list of stocks are sent
+to Anthropic's AI to write the answers.
+
+**Payments:** Krypton Pro is paid through Stripe. Krypton never sees or stores your card number.
 
 **Deleting your data:** 👤 Account → Delete my account removes your account and everything in it.
 
@@ -100,9 +103,11 @@ def account_tab(user):
     c1, c2, c3 = st.columns(3)
     c1.metric("Username", user["username"])
     c2.metric("Role", "Admin" if user["is_admin"] else "User")
-    c3.metric("AI features", "On" if user["ai_allowed"] else "Off")
+    c3.metric("Plan", "Admin" if user["is_admin"] else ("Pro" if is_pro(user) else "Free"))
     st.caption(f"Account created {user['created']}. Your portfolio, alerts and briefings are stored privately "
                "and no other user can see them.")
+
+    plan_section(user)
 
     if st.button("🚪 Log out"):
         st.session_state.clear()
@@ -122,9 +127,13 @@ def account_tab(user):
 
     if not user["is_admin"]:
         with st.expander("🗑️ Delete my account"):
-            st.warning("This permanently deletes your account, portfolio, alerts and briefings.")
+            st.warning("This permanently deletes your account, portfolio, alerts and briefings. "
+                       "A Krypton Pro subscription is cancelled too.")
             sure = st.checkbox("Yes, I understand this can't be undone")
             if st.button("Delete my account", disabled=not sure):
+                if not cancel_subscription(user):
+                    st.error("Couldn't cancel your subscription right now, so nothing was deleted. Try again soon.")
+                    st.stop()
                 delete_account(user["id"])
                 st.session_state.clear()
                 st.rerun()
@@ -132,16 +141,19 @@ def account_tab(user):
 
     # ---------- Admin only ----------
     st.markdown("### 🛡️ Admin: users")
-    st.caption("AI features use YOUR API key and cost money, so they're off for new users until you switch them on.")
+    st.caption("AI uses YOUR API key, so it's for Krypton Pro subscribers only. "
+               "'Free Pro' gives someone Pro without paying (you pay their AI, same monthly cap).")
     for other in all_users():
         with st.container(border=True):
             left, middle, right = st.columns([2, 1.2, 1])
-            left.markdown(f"**{other['username']}** {'· 🛡️ admin' if other['is_admin'] else ''}  \n"
-                          f"<small>joined {other['created']}</small>", unsafe_allow_html=True)
+            badge = "· 🛡️ admin" if other["is_admin"] else ("· ⭐ Pro" if is_pro(other) else "")
+            left.markdown(f"**{other['username']}** {badge}  \n"
+                          f"<small>joined {other['created']} · AI this month ${month_spend(other):.2f}</small>",
+                          unsafe_allow_html=True)
             if other["is_admin"]:
                 middle.markdown("AI: always on")
             else:
-                allowed = middle.toggle("AI features", value=other["ai_allowed"], key=f"ai_{other['id']}")
+                allowed = middle.toggle("Free Pro", value=other["ai_allowed"], key=f"ai_{other['id']}")
                 if allowed != other["ai_allowed"]:
                     set_ai_allowed(other["id"], allowed)
                     st.rerun()

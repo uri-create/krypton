@@ -8,8 +8,8 @@
 #   - Anyone can sign up, but bots are slowed down: max 3 new accounts per internet address per
 #     hour, and max 30 new accounts per hour in total.
 #   - Each user's data is reached only through their own UserStore (see storage.py).
-#   - The FIRST account ever created becomes the admin. New users have AI features OFF until an
-#     admin turns them on (AI costs money on the admin's API key).
+#   - The FIRST account ever created becomes the admin. AI features cost money on the admin's API key,
+#     so other users need Krypton Pro (see billing.py) or a free Pro pass from the admin (ai_allowed).
 
 import datetime as dt
 import re
@@ -135,26 +135,3 @@ def delete_account(user_id):
     with engine.begin() as db:
         db.execute(users.delete().where(users.c.id == user_id))
     return None
-
-
-# ---------------------------------------------------------------------------
-# AI spending limit: AI runs on the admin's API key, so non-admin users get a daily allowance.
-# ---------------------------------------------------------------------------
-AI_DAILY_LIMIT = 25
-
-
-def ai_uses_today(user):
-    return user["store"].read(f"ai_uses:{dt.date.today():%Y-%m-%d}", 0)
-
-
-def use_ai(user):
-    """Call before every AI request. Returns True (and counts it) if the user may use AI now."""
-    if not user.get("ai_allowed"):
-        return False
-    if user.get("is_admin"):
-        return True
-    used = ai_uses_today(user)
-    if used >= AI_DAILY_LIMIT:
-        return False
-    user["store"].write(f"ai_uses:{dt.date.today():%Y-%m-%d}", used + 1)
-    return True

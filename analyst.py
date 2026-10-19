@@ -56,8 +56,9 @@ def live_summary(state, store, backtest_overall=None, limit=30):
 
 
 def ask(question, history, state, store, backtest_overall=None):
-    """Send the conversation to Claude (with web search). Returns (answer_text, sources)."""
+    """Send the conversation to Claude (with web search). Returns (answer_text, sources, cost in US dollars)."""
     import anthropic
+    from billing import cost_of
 
     load_api_key()  # pick up the key saved by set_api_key.sh
     client = anthropic.Anthropic()
@@ -66,6 +67,7 @@ def ask(question, history, state, store, backtest_overall=None):
     messages = [{"role": m["role"], "content": m["content"]} for m in history]
     messages.append({"role": "user", "content": question})
     tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}]
+    cost = 0.0
 
     for _ in range(5):  # continue if a long web-search turn pauses
         response = client.beta.messages.create(
@@ -73,12 +75,13 @@ def ask(question, history, state, store, backtest_overall=None):
             output_config={"effort": "medium"},
             betas=["server-side-fallback-2026-07-01"], fallbacks="default",
         )
+        cost += cost_of(response)
         if response.stop_reason != "pause_turn":
             break
         messages.append({"role": "assistant", "content": response.content})
 
     if response.stop_reason == "refusal":
-        return "Sorry, I can't help with that one. Try asking it a different way.", []
+        return "Sorry, I can't help with that one. Try asking it a different way.", [], cost
     text, sources = [], {}
     for block in response.content:
         if block.type == "text":
@@ -86,4 +89,4 @@ def ask(question, history, state, store, backtest_overall=None):
             for citation in getattr(block, "citations", None) or []:
                 if getattr(citation, "url", None):
                     sources[citation.url] = getattr(citation, "title", None) or citation.url
-    return "".join(text).strip(), [{"url": u, "title": t} for u, t in sources.items()]
+    return "".join(text).strip(), [{"url": u, "title": t} for u, t in sources.items()], cost

@@ -289,21 +289,23 @@ def render_deep_research(event_key, description):
                 "sourced analysis: real causes, what led to it, and named companies it affects.")
     saved = load_saved(event_key)  # saved research isn't personal, so everyone can read it
     user = st.session_state.get("user") or {}
-    if not user.get("ai_allowed"):
-        st.info("🔒 Running new AI research is switched off for your account. Ask the Krypton admin to turn it on.")
+    from billing import add_cost, ai_access, locked_message
+    allowed, reason = ai_access(user) if user else (False, "locked")
+    if not allowed:
+        if saved:
+            st.caption("🔒 Running fresh research is part of Krypton Pro.")
+        else:
+            locked_message(user, reason, f"research_{event_key}")
     elif not api_key_available():
         st.warning("Needs the Anthropic API key on this computer (see set_api_key.sh). "
                    "Cost: about 5–15 US cents per analysis; saved results are free to re-open.")
     else:
         label = "🔄 Refresh research (~10¢)" if saved else "🔬 Run deep research (~10¢)"
         if st.button(label, key=f"research_{event_key}"):
-            from users import AI_DAILY_LIMIT, use_ai
-            if not use_ai(user):
-                st.warning(f"Daily AI limit reached ({AI_DAILY_LIMIT} requests). Try again tomorrow.")
-                return
             with st.spinner("Researching (searching the web, usually 30–90 seconds)..."):
                 try:
                     saved = run_research(event_key, description)
+                    add_cost(user, saved.get("cost"))
                 except Exception as error:
                     st.error(f"Research failed: {error}")
     if saved:

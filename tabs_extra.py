@@ -21,18 +21,21 @@ from panels import line_chart, pie_chart, subtitle
 from portfolio import exposure, holding_prices, load_portfolio, lookup_holding, save_portfolio
 from why_moved import explain, load_today, week_move
 from severity import SEVERITY
-from users import AI_DAILY_LIMIT, use_ai
+from billing import add_cost, ai_access, locked_message
 
 
 def ai_ready(user):
-    """AI features need the API key AND permission (admins always; other users if an admin allows it)."""
-    return user["ai_allowed"] and api_key_available()
+    """AI features need the API key AND Krypton Pro (admins always; see billing.py)."""
+    return ai_access(user)[0] and api_key_available()
 
 
-def ai_off_message(user):
-    if not user["ai_allowed"]:
-        return "🔒 AI features are switched off for your account. Ask the Krypton admin to turn them on."
-    return "Needs the API key on this computer (see set_api_key.sh)."
+def ai_off(user, key):
+    """Explain why an AI feature is unavailable (and offer Krypton Pro)."""
+    allowed, reason = ai_access(user)
+    if not allowed:
+        locked_message(user, reason, key)
+    else:
+        st.caption("AI is offline right now.")
 
 
 def badge(severity):
@@ -220,15 +223,20 @@ def portfolio_tab(state, user):
                      f"{len(missing) * 5}¢)", type="primary"):
             progress = st.progress(0.0, text="Searching the news...")
             for i, h in enumerate(missing, 1):
-                if not use_ai(user):
-                    st.warning(f"Daily AI limit reached ({AI_DAILY_LIMIT} requests). Try again tomorrow.")
+                if not ai_access(user)[0]:
+                    st.warning("You've used this month's AI allowance. It resets on the 1st of next month.")
                     break
                 try:
-                    explain(store, h["ticker"], h["name"], week_move(held[h["ticker"]]) or 0.0, market_week or 0.0)
+                    result = explain(store, h["ticker"], h["name"], week_move(held[h["ticker"]]) or 0.0,
+                                     market_week or 0.0)
+                    add_cost(user, result.get("cost"))
                 except Exception as error:
                     st.warning(f"{h['ticker']}: couldn't check ({error}).")
                 progress.progress(i / len(missing), text=f"Checked {h['ticker']}")
             st.rerun()
+
+    elif missing and not ai_access(user)[0]:
+        locked_message(user, ai_access(user)[1], "portfolio")
 
     # ---- One short card per stock
     for h in holdings:
@@ -254,7 +262,7 @@ def portfolio_tab(state, user):
             if saved:
                 st.markdown(saved["text"])
             elif not ai_ready(user):
-                st.caption(ai_off_message(user))
+                st.caption("🔒 Krypton Pro shows the real news behind this move.")
             else:
                 st.caption("Press the 🧠 button above to look up the real news.")
 
@@ -497,7 +505,7 @@ def analyst_tab(state, user):
     st.caption("Chat with an AI analyst that sees everything on Krypton right now (events, severity, affected "
                "markets, your portfolio, the track record) and searches the web for the latest news.")
     if not ai_ready(user):
-        st.warning(ai_off_message(user))
+        ai_off(user, "analyst")
         st.markdown("**Example questions you'll be able to ask:**\n" + "\n".join(f"- {q}" for q in EXAMPLES))
         return
 
@@ -512,14 +520,15 @@ def analyst_tab(state, user):
         with st.chat_message("user"):
             st.markdown(question)
         with st.chat_message("assistant"):
-            if not use_ai(user):
-                st.warning(f"Daily AI limit reached ({AI_DAILY_LIMIT} requests). Try again tomorrow.")
+            if not ai_access(user)[0]:
+                st.warning("You've used this month's AI allowance. It resets on the 1st of next month.")
                 st.stop()
             with st.spinner("Thinking and searching..."):
                 results = load_results()
                 overall = summarise(results)[0] if results else None
                 try:
-                    answer, sources = ask(question, history, state, user["store"], overall)
+                    answer, sources, cost = ask(question, history, state, user["store"], overall)
+                    add_cost(user, cost)
                 except Exception as error:
                     answer, sources = f"Something went wrong: {error}", []
             if sources:

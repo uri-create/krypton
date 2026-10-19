@@ -92,10 +92,12 @@ def load_saved(event_key):
 def run_research(event_key, event_description):
     """Ask Claude (with web search) to research the event. Returns {"text", "sources", "date"}."""
     import anthropic
+    from billing import cost_of
 
     load_api_key()  # pick up the key saved by set_api_key.sh
     client = anthropic.Anthropic()
     tools = [{"type": "web_search_20260209", "name": "web_search", "max_uses": 8}]
+    cost = 0.0
     messages = [{"role": "user", "content": f"Today is {dt.date.today():%d %B %Y}.\n\nEVENT:\n{event_description}"}]
 
     # Web searches run on Anthropic's servers. If a long search turn pauses ("pause_turn"),
@@ -112,6 +114,7 @@ def run_research(event_key, event_description):
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
         )
+        cost += cost_of(response)
         if response.stop_reason != "pause_turn":
             break
         messages.append({"role": "assistant", "content": response.content})
@@ -129,7 +132,7 @@ def run_research(event_key, event_description):
                     sources[url] = getattr(citation, "title", None) or url
 
     result = {"text": "".join(text_parts).strip(), "sources": [{"url": u, "title": t} for u, t in sources.items()],
-              "date": dt.datetime.now().strftime("%d %b %Y, %H:%M")}
+              "date": dt.datetime.now().strftime("%d %b %Y, %H:%M"), "cost": round(cost, 4)}
     os.makedirs(RESEARCH_FOLDER, exist_ok=True)
     with open(_cache_path(event_key), "w", encoding="utf-8") as file:
         json.dump(result, file, ensure_ascii=False, indent=2)

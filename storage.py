@@ -93,6 +93,15 @@ signups = Table(  # used to slow down bots creating lots of accounts
     Column("ip", String(64)),
 )
 
+subscriptions = Table(  # Krypton Pro: who pays (the payment itself happens on Stripe, see billing.py)
+    "subscriptions", metadata,
+    Column("user_id", Integer, primary_key=True),
+    Column("customer_id", String(64)),       # Stripe's id for this payer
+    Column("subscription_id", String(64)),   # Stripe's id for this subscription
+    Column("status", String(20)),            # "active" = paid up
+    Column("checked", String(25)),           # when we last asked Stripe
+)
+
 metadata.create_all(engine)
 
 

@@ -45,9 +45,11 @@ def week_move(series):
 def explain(store, ticker, name, move, market_move):
     """Ask the AI (with web search) why this stock moved. Saves and returns {"text", "move", "time"}."""
     import anthropic
+    from billing import cost_of
 
     load_api_key()
     client = anthropic.Anthropic()
+    cost = 0.0
     question = (f"Today is {dt.date.today():%d %B %Y}. {name} (ticker {ticker}) moved {move:+.1f}% over the last "
                 f"5 trading days. For comparison, the whole US stock market (S&P 500) moved {market_move:+.1f}%. "
                 "Why did it move?")
@@ -59,6 +61,7 @@ def explain(store, ticker, name, move, market_move):
             output_config={"effort": "low"},
             betas=["server-side-fallback-2026-07-01"], fallbacks="default",
         )
+        cost += cost_of(response)
         if response.stop_reason != "pause_turn":
             break
         messages.append({"role": "assistant", "content": response.content})
@@ -66,6 +69,6 @@ def explain(store, ticker, name, move, market_move):
     text = "".join(b.text for b in response.content if b.type == "text").strip()
     if response.stop_reason == "refusal" or not text:
         text = "Couldn't find an explanation right now. Try again later."
-    result = {"text": text, "move": move, "time": dt.datetime.now().strftime("%H:%M")}
+    result = {"text": text, "move": move, "time": dt.datetime.now().strftime("%H:%M"), "cost": round(cost, 4)}
     store.write(_name(ticker), result)
     return result
