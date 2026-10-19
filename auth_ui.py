@@ -46,6 +46,8 @@ def login_gate():
             st.session_state["user"] = remembered
             st.session_state["ticket"] = ticket
             return remembered
+        if ticket:
+            st.session_state["login_expired"] = True
 
     _, middle, _ = st.columns([1, 1.3, 1])
     with middle:
@@ -53,6 +55,8 @@ def login_gate():
                     "<div class='hud-tag'>RESTRICTED ACCESS</div></div>", unsafe_allow_html=True)
         if not any_users():
             st.info("No accounts yet. **The first account created becomes the admin** (the owner of this Krypton).")
+        if st.session_state.get("login_expired"):
+            st.caption(f"⏳ Your saved login has ended (it lasts {STAY_LOGGED_IN_DAYS} days). Please log in again.")
         log_in_tab, sign_up_tab = st.tabs(["🔑 Log in", "🆕 Create account"])
 
         with log_in_tab:
