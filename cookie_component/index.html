@@ -1,22 +1,44 @@
 <!DOCTYPE html>
-<!-- Krypton's tiny invisible helper: saves (or deletes) the "stay logged in" cookie in the browser.
-     Python reads the cookie back with st.context.cookies (see cookies.py). -->
+<!-- Krypton's tiny invisible helper for the "stay logged in" cookie (see cookies.py):
+       mode "save" - store (or delete) the cookie in this browser
+       mode "read" - send the cookie's value back to Python (Streamlit's hosting doesn't pass
+                     cookies to the app, so the browser has to hand it over itself) -->
 <html>
 <head><meta charset="utf-8"></head>
 <body style="margin:0">
 <script>
+  var SAFE_NAME = /^[a-z_]+$/, SAFE_VALUE = /^[A-Za-z0-9_-]*$/;
+  var sent = false;
+
   function send(type, data) {
     window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data || {}), "*");
   }
+
+  function readCookie(name) {
+    var parts = document.cookie.split("; ");
+    for (var i = 0; i < parts.length; i++) {
+      var eq = parts[i].indexOf("=");
+      if (parts[i].slice(0, eq) === name) return parts[i].slice(eq + 1);
+    }
+    return "";
+  }
+
   window.addEventListener("message", function (event) {
     var message = event.data;
     if (!message || message.type !== "streamlit:render") return;
     var args = message.args || {};
-    if (args.name && /^[a-z_]+$/.test(args.name) && /^[A-Za-z0-9_-]*$/.test(args.value || "")) {
+    send("streamlit:setFrameHeight", { height: 0 });
+    if (!SAFE_NAME.test(args.name || "")) return;
+
+    if (args.mode === "save" && SAFE_VALUE.test(args.value || "")) {
       document.cookie = args.name + "=" + (args.value || "") + "; Max-Age=" + Math.floor(args.max_age || 0) +
         "; Path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : "");
     }
-    send("streamlit:setFrameHeight", { height: 0 });
+    if (args.mode === "read" && !sent) {  // answer once per page load
+      sent = true;
+      var value = readCookie(args.name);
+      send("streamlit:setComponentValue", { value: SAFE_VALUE.test(value) ? value : "", dataType: "json" });
+    }
   });
   send("streamlit:componentReady", { apiVersion: 1 });
 </script>
