@@ -132,3 +132,27 @@ def get_state():
         _built["state"]["universe"] = raw["universe"]
         _built["version"] = current
     return _built["state"]
+
+
+def ready_state():
+    """The latest built state if one exists already (never waits, never downloads), else None."""
+    return _built["state"]
+
+
+_warming = threading.Lock()
+
+
+def warm_up():
+    """Start downloading everything in the background (used on the landing page, so the app is
+    ready by the time a visitor has signed up or logged in)."""
+    if _built["state"] is not None or not _warming.acquire(blocking=False):
+        return
+
+    def job():
+        try:
+            get_state()
+        except Exception:
+            pass
+        finally:
+            _warming.release()
+    threading.Thread(target=job, daemon=True).start()

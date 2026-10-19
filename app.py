@@ -12,6 +12,7 @@ import html
 import streamlit as st
 
 from analysis import STATUS_STYLE, build_briefing
+from theme import DEFAULT as DEFAULT_THEME, apply as apply_theme
 from auth_ui import account_tab, login_gate
 from billing import handle_return, pro_page
 from compass import READINGS, reading
@@ -38,7 +39,7 @@ CYAN, AMBER, RED, GRID = "#ff2a3d", "#ffb000", "#ff2a3d", "#3a1a20"   # "CYAN" i
 # ===========================================================================
 # LOOK & FEEL: sleek and sinister. Near-black glass, blood-red glow, clean modern type.
 # ===========================================================================
-st.markdown(f"""
+_CSS = f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 :root {{
@@ -50,7 +51,7 @@ html, body, [class*="css"], .stMarkdown, .stDataFrame, button, input, textarea, 
   font-family: 'Inter', system-ui, sans-serif; }}
 h1, h2, h3, .hud-title, .panel-title {{ font-family: 'Space Grotesk', 'Inter', sans-serif; }}
 
-/* Deep black with soft crimson light bleeding in from the edges */
+/* A living background: deep black, slow-drifting aurora light, and a faint grid fading into the dark */
 .stApp {{
   background-color: var(--bg);
   background-image:
@@ -59,6 +60,31 @@ h1, h2, h3, .hud-title, .panel-title {{ font-family: 'Space Grotesk', 'Inter', s
     radial-gradient(800px 600px at 50% 120%, rgba(70, 0, 10, 0.25), transparent 60%);
   background-attachment: fixed;
 }}
+.stApp::before {{
+  content: ""; position: fixed; inset: -25%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(32% 28% at 22% 30%, rgba(255, 42, 61, 0.16), transparent 70%),
+    radial-gradient(28% 26% at 78% 22%, rgba(120, 0, 40, 0.30), transparent 70%),
+    radial-gradient(36% 30% at 62% 82%, rgba(150, 0, 20, 0.22), transparent 70%),
+    radial-gradient(22% 20% at 10% 85%, rgba(120, 0, 40, 0.18), transparent 70%);
+  filter: blur(30px); animation: aurora 32s ease-in-out infinite alternate;
+}}
+.stApp::after {{
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+}}
+@keyframes aurora {{
+  0% {{ transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }}
+  50% {{ transform: translate3d(4%, -3%, 0) scale(1.08) rotate(4deg); }}
+  100% {{ transform: translate3d(-4%, 3%, 0) scale(1.04) rotate(-3deg); }}
+}}
+[data-testid="stAppViewContainer"] {{ position: relative; z-index: 1; background: transparent; }}
+[data-testid="stHeader"] {{ background: transparent; }}
+@media (prefers-reduced-motion: reduce) {{ .stApp::before {{ animation: none; }} }}
 .block-container {{ padding-top: 2rem; }}
 
 h1, h2 {{ font-weight: 700 !important; letter-spacing: -0.01em; color: var(--text) !important; }}
@@ -158,7 +184,7 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
                font-family: 'Space Grotesk', 'Inter', sans-serif; font-variant-numeric: tabular-nums; }}
 .stat-delta {{ display: inline-block; margin-top: 6px; padding: 2px 9px; border-radius: 999px; font-size: 0.75rem;
                font-weight: 600; background: rgba(255, 255, 255, 0.06); color: var(--muted); }}
-.stat-delta.bad {{ background: rgba(255, 42, 61, 0.14); color: #ff6b78; }}
+.stat-delta.bad {{ background: rgba(239, 68, 68, 0.15); color: #f87171; }}
 .stat-delta.good {{ background: rgba(61, 220, 132, 0.12); color: #5ee39a; }}
 .stat-explain {{ color: #a3a3ae; font-size: 0.8rem; line-height: 1.45; margin-top: 8px;
                  border-top: 1px solid var(--line); padding-top: 8px; }}
@@ -180,7 +206,7 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .hero-meaning {{ color: #c9c9d1; font-size: 1rem; margin-top: 4px; }}
 .hero-foot {{ color: #6f6f7a; font-size: 0.78rem; margin-top: 10px; }}
 .gauge {{ position: relative; height: 10px; border-radius: 999px; margin: 16px 0 6px;
-          background: linear-gradient(90deg, #ff2a3d 0%, #ffb000 50%, #3ddc84 100%); opacity: 0.85; }}
+          background: linear-gradient(90deg, #ef4444 0%, #ffb000 50%, #3ddc84 100%); opacity: 0.85; }}
 .gauge-mark {{ position: absolute; top: -5px; width: 6px; height: 20px; border-radius: 4px;
                transform: translateX(-50%); border: 2px solid #fff; }}
 .gauge-labels {{ display: flex; justify-content: space-between; color: #6f6f7a; font-size: 0.72rem; }}
@@ -218,7 +244,7 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .heat-legend {{ display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 0.75rem;
                 margin: 0 0 12px; }}
 .heat-scale {{ width: 220px; height: 8px; border-radius: 999px;
-               background: linear-gradient(90deg, rgba(255,42,61,0.65), rgba(255,255,255,0.06), rgba(61,220,132,0.65)); }}
+               background: linear-gradient(90deg, rgba(239,68,68,0.65), rgba(255,255,255,0.06), rgba(61,220,132,0.65)); }}
 .heat-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }}
 .heat-sector {{ border: 1px solid var(--line); border-radius: 16px; padding: 12px; background: var(--glass); }}
 .heat-head {{ display: flex; justify-content: space-between; align-items: center; color: var(--text);
@@ -287,12 +313,59 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
                    font-variant-numeric: tabular-nums; }}
 .research-price .stat-delta {{ margin-left: 8px; vertical-align: middle; }}
 
+/* Landing page (before log in) */
+.landing-hero {{ padding: 36px 0 10px; }}
+.landing-brand {{ font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.42em; font-size: 1.05rem;
+                  background: linear-gradient(90deg, #ffffff, #ff8a95); -webkit-background-clip: text;
+                  background-clip: text; color: transparent; margin-bottom: 34px; }}
+.landing-kicker {{ display: inline-flex; align-items: center; gap: 8px; color: #ff8a95; font-size: 0.72rem;
+                   font-weight: 600; letter-spacing: 0.18em; padding: 6px 14px; border-radius: 999px;
+                   border: 1px solid rgba(255, 42, 61, 0.35); background: rgba(255, 42, 61, 0.08); }}
+.dot {{ width: 7px; height: 7px; border-radius: 50%; background: #ff2a3d; display: inline-block;
+        animation: ping 1.6s infinite; }}
+.landing-title {{ font-family: 'Space Grotesk', sans-serif !important; font-size: clamp(2.6rem, 5.4vw, 4.6rem) !important;
+                  font-weight: 700 !important; line-height: 1.02 !important; letter-spacing: -0.03em !important;
+                  color: #f5f5f8 !important; margin: 22px 0 18px !important; text-transform: none !important; }}
+.landing-title .grad {{ background: linear-gradient(100deg, #ff2a3d 0%, #ff8a95 55%, #ffb3ba 100%);
+                        -webkit-background-clip: text; background-clip: text; color: transparent;
+                        filter: drop-shadow(0 0 24px rgba(255, 42, 61, 0.45)); }}
+.landing-sub {{ color: #b9b9c3; font-size: 1.12rem; line-height: 1.65; max-width: 560px; margin: 0 0 24px; }}
+.landing-chips {{ display: flex; flex-wrap: wrap; gap: 8px; }}
+.chip-live {{ display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+              font-size: 0.85rem; color: #d6d6de; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); }}
+.chip-live b {{ color: #fff; }}
+.chip-live .dot {{ width: 6px; height: 6px; }}
+.muted-chip {{ color: var(--muted); }}
+.landing-section {{ color: var(--muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.2em;
+                    text-transform: uppercase; margin: 56px 0 16px; text-align: center; }}
+.feature-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }}
+.feature {{ border: 1px solid var(--line); border-radius: 18px; padding: 22px; background: var(--glass);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease; }}
+.feature:hover {{ transform: translateY(-4px); border-color: rgba(255, 42, 61, 0.35);
+                  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(255, 42, 61, 0.10); }}
+.feature-icon {{ color: #ff2a3d; width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center;
+                 justify-content: center; background: rgba(255, 42, 61, 0.10); border: 1px solid rgba(255, 42, 61, 0.25);
+                 margin-bottom: 14px; }}
+.feature-title {{ color: var(--text); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 1.1rem;
+                  margin-bottom: 6px; }}
+.feature-text {{ color: #a3a3ae; font-size: 0.9rem; line-height: 1.55; }}
+.source-strip {{ display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 26px; color: #7a7a86;
+                 font-size: 0.9rem; font-weight: 500; }}
+.landing-foot {{ text-align: center; color: #6f6f7a; font-size: 0.8rem; margin: 48px 0 20px; }}
+
+/* Theme swatches (Account tab) */
+.swatches {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }}
+.swatch {{ width: 14px; height: 14px; border-radius: 50%; display: inline-block; }}
+.swatch-name {{ color: var(--muted); font-size: 0.82rem; margin-right: 10px; }}
+
 /* Slim dark scrollbars */
 ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
 ::-webkit-scrollbar-thumb {{ background: rgba(255, 42, 61, 0.25); border-radius: 8px; }}
 ::-webkit-scrollbar-track {{ background: transparent; }}
 </style>
-""", unsafe_allow_html=True)
+"""
+st.markdown(apply_theme(_CSS, st.session_state.get("theme", DEFAULT_THEME)), unsafe_allow_html=True)
 
 # ===========================================================================
 # DATA (cached so the page is fast and we're kind to the free servers)
@@ -321,6 +394,10 @@ if MISCONFIGURED:  # online without the real database: lock everything (see stor
                    '(each line like NAME = "value", with straight quotes).')
     st.stop()
 user = login_gate()
+if "theme" not in st.session_state:  # use this person's saved colour theme
+    st.session_state["theme"] = user["store"].read("theme", DEFAULT_THEME)
+    if st.session_state["theme"] != DEFAULT_THEME:
+        st.rerun()
 handle_return(user)  # just came back from paying on Stripe?
 if st.session_state.get("pro_page"):  # a button was pressed: show the Krypton Pro page instead
     pro_page(user)
