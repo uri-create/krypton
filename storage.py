@@ -102,6 +102,13 @@ subscriptions = Table(  # Krypton Pro: who pays (the payment itself happens on S
     Column("checked", String(25)),           # when we last asked Stripe
 )
 
+login_tokens = Table(  # "stay logged in" tickets (see users.py); only a hash is stored, like passwords
+    "login_tokens", metadata,
+    Column("token_hash", String(64), primary_key=True),
+    Column("user_id", Integer, nullable=False),
+    Column("expires", String(25), nullable=False),
+)
+
 metadata.create_all(engine)
 
 

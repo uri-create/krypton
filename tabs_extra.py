@@ -25,7 +25,7 @@ from billing import add_cost, ai_access, locked_message
 
 
 def ai_ready(user):
-    """AI features need the API key AND Krypton Pro (admins always; see billing.py)."""
+    """AI features need Krypton Pro (admins always; see billing.py) and the AI to be reachable."""
     return ai_access(user)[0] and api_key_available()
 
 
@@ -219,8 +219,7 @@ def portfolio_tab(state, user):
     market_week = week_move(state["prices"]["S&P 500"]) if "S&P 500" in state["prices"] else 0.0
     missing = [h for h in holdings if load_today(store, h["ticker"]) is None and h["ticker"] in held]
     if missing and ai_ready(user):
-        if st.button(f"🧠 Find out why my stocks moved this week ({len(missing)} to check, about "
-                     f"{len(missing) * 5}¢)", type="primary"):
+        if st.button(f"🧠 Find out why my stocks moved this week ({len(missing)} to check)", type="primary"):
             progress = st.progress(0.0, text="Searching the news...")
             for i, h in enumerate(missing, 1):
                 if not ai_access(user)[0]:

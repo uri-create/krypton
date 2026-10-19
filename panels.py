@@ -297,10 +297,9 @@ def render_deep_research(event_key, description):
         else:
             locked_message(user, reason, f"research_{event_key}")
     elif not api_key_available():
-        st.warning("Needs the Anthropic API key on this computer (see set_api_key.sh). "
-                   "Cost: about 5–15 US cents per analysis; saved results are free to re-open.")
+        st.caption("AI research is unavailable right now. Please try again later.")
     else:
-        label = "🔄 Refresh research (~10¢)" if saved else "🔬 Run deep research (~10¢)"
+        label = "🔄 Refresh research" if saved else "🔬 Run deep research"
         if st.button(label, key=f"research_{event_key}"):
             with st.spinner("Researching (searching the web, usually 30–90 seconds)..."):
                 try:

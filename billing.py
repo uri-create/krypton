@@ -221,7 +221,7 @@ def plan_section(user):
     """The 'Your plan' part of the Account tab."""
     st.markdown("#### ⭐ Your plan")
     if user.get("is_admin"):
-        st.caption(f"Admin: AI unlimited. Spent this month: ${month_spend(user):.2f} of your API money.")
+        st.caption(f"Admin: AI unlimited. AI spending this month: ${month_spend(user):.2f}.")
         return
     pro = is_pro(user)
     if pro or user.get("ai_allowed"):

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- Krypton's tiny invisible helper: saves (or deletes) the "stay logged in" cookie in the browser.
+     Python reads the cookie back with st.context.cookies (see cookies.py). -->
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0">
+<script>
+  function send(type, data) {
+    window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, data || {}), "*");
+  }
+  window.addEventListener("message", function (event) {
+    var message = event.data;
+    if (!message || message.type !== "streamlit:render") return;
+    var args = message.args || {};
+    if (args.name && /^[a-z_]+$/.test(args.name) && /^[A-Za-z0-9_-]*$/.test(args.value || "")) {
+      document.cookie = args.name + "=" + (args.value || "") + "; Max-Age=" + Math.floor(args.max_age || 0) +
+        "; Path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : "");
+    }
+    send("streamlit:setFrameHeight", { height: 0 });
+  });
+  send("streamlit:componentReady", { apiVersion: 1 });
+</script>
+</body>
+</html>

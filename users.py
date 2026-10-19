@@ -12,13 +12,16 @@
 #     so other users need Krypton Pro (see billing.py) or a free Pro pass from the admin (ai_allowed).
 
 import datetime as dt
+import hashlib
 import re
+import secrets
 
 import bcrypt
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
-from storage import MISCONFIGURED, UserStore, count_recent_signups, engine, now_text, record_signup, users
+from storage import (MISCONFIGURED, UserStore, count_recent_signups, engine, login_tokens, now_text, record_signup,
+                     users)
 
 MAX_FAILED_LOGINS = 5
 LOCK_MINUTES = 5
@@ -132,6 +135,56 @@ def delete_account(user_id):
     if not user or user["is_admin"]:
         return "Admin accounts can't be deleted here."
     user["store"].delete_all()
+    forget_logins(user_id)
     with engine.begin() as db:
         db.execute(users.delete().where(users.c.id == user_id))
     return None
+
+
+# ---------------------------------------------------------------------------
+# "Stay logged in" for 9 days.
+# After logging in, the browser keeps a random ticket (a cookie). Coming back within 9 days, the ticket
+# logs you in automatically; after 9 days you must type your password again. The database keeps only
+# a hash of the ticket, so even someone reading the database can't use it.
+# ---------------------------------------------------------------------------
+STAY_LOGGED_IN_DAYS = 9
+
+
+def _hash(ticket):
+    return hashlib.sha256(ticket.encode("utf-8")).hexdigest()
+
+
+def new_login_ticket(user_id):
+    """Make a fresh 9-day ticket for this user. Returns the ticket (for the browser cookie)."""
+    ticket = secrets.token_urlsafe(32)
+    now = dt.datetime.now()
+    with engine.begin() as db:
+        db.execute(delete(login_tokens).where(login_tokens.c.expires < now.isoformat(timespec="seconds")))
+        db.execute(insert(login_tokens).values(
+            token_hash=_hash(ticket), user_id=int(user_id),
+            expires=(now + dt.timedelta(days=STAY_LOGGED_IN_DAYS)).isoformat(timespec="seconds")))
+    return ticket
+
+
+def user_from_ticket(ticket):
+    """The user a still-valid ticket belongs to, or None."""
+    if not ticket or len(ticket) > 100:
+        return None
+    with engine.connect() as db:
+        row = db.execute(select(login_tokens).where(login_tokens.c.token_hash == _hash(ticket))).first()
+    if not row or row.expires < dt.datetime.now().isoformat(timespec="seconds"):
+        return None
+    return get_user(row.user_id)
+
+
+def forget_login(ticket):
+    """Log out this one browser."""
+    if ticket:
+        with engine.begin() as db:
+            db.execute(delete(login_tokens).where(login_tokens.c.token_hash == _hash(ticket)))
+
+
+def forget_logins(user_id):
+    """Log this user out everywhere (after a password change or account deletion)."""
+    with engine.begin() as db:
+        db.execute(delete(login_tokens).where(login_tokens.c.user_id == int(user_id)))

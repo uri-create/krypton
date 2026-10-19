@@ -6,8 +6,23 @@ import secrets
 import streamlit as st
 
 from billing import cancel_subscription, is_pro, month_spend, plan_section
-from users import (all_users, any_users, change_password, create_account, delete_account, get_user, log_in,
-                   set_ai_allowed)
+from cookies import delete_ticket, read_ticket, save_ticket
+from users import (STAY_LOGGED_IN_DAYS, all_users, any_users, change_password, create_account, delete_account,
+                   forget_login, forget_logins, get_user, log_in, new_login_ticket, set_ai_allowed, user_from_ticket)
+
+
+def start_session(user):
+    """Log this user in for this visit AND remember this browser for 9 days."""
+    ticket = new_login_ticket(user["id"])
+    st.session_state["user"] = user
+    st.session_state["ticket"] = ticket
+    st.session_state["new_ticket"] = ticket  # saved into the browser on the next page draw
+
+
+def log_out():
+    forget_login(st.session_state.get("ticket"))
+    st.session_state.clear()
+    st.session_state["logged_out"] = True  # also wipes the cookie from the browser (see login_gate)
 
 
 def login_gate():
@@ -16,8 +31,21 @@ def login_gate():
         fresh = get_user(st.session_state["user"]["id"])  # re-read: permissions may have changed
         if fresh:
             st.session_state["user"] = fresh
+            if st.session_state.get("new_ticket"):
+                save_ticket(st.session_state["new_ticket"], STAY_LOGGED_IN_DAYS)
             return fresh
         st.session_state.pop("user")  # account was deleted
+
+    # Logged in on this browser in the last 9 days? Then no password needed.
+    if st.session_state.get("logged_out"):
+        delete_ticket()
+    else:
+        ticket = read_ticket()
+        remembered = user_from_ticket(ticket)
+        if remembered:
+            st.session_state["user"] = remembered
+            st.session_state["ticket"] = ticket
+            return remembered
 
     _, middle, _ = st.columns([1, 1.3, 1])
     with middle:
@@ -34,7 +62,7 @@ def login_gate():
                 if st.form_submit_button("Log in", type="primary", use_container_width=True):
                     user, error = log_in(username.strip(), password)
                     if user:
-                        st.session_state["user"] = user
+                        start_session(user)
                         st.rerun()
                     st.error(error)
 
@@ -61,7 +89,7 @@ def login_gate():
                         user, error = create_account(username.strip(), password, ip=visitor_ip())
                         if user:
                             st.session_state.pop("human_check", None)
-                            st.session_state["user"] = user
+                            start_session(user)
                             st.rerun()
                         st.error(error)
         st.caption("Your portfolio, alerts and briefings are private to your account.")
@@ -109,8 +137,9 @@ def account_tab(user):
 
     plan_section(user)
 
+    st.caption(f"You stay logged in on this device for {STAY_LOGGED_IN_DAYS} days.")
     if st.button("🚪 Log out"):
-        st.session_state.clear()
+        log_out()
         st.rerun()
 
     with st.expander("🔑 Change password"):
@@ -123,7 +152,12 @@ def account_tab(user):
                     st.error("The new passwords don't match.")
                 else:
                     error = change_password(user["id"], old, new)
-                    st.error(error) if error else st.success("Password changed.")
+                    if error:
+                        st.error(error)
+                    else:
+                        forget_logins(user["id"])  # log out every other device
+                        start_session(user)
+                        st.success("Password changed. Other devices have been logged out.")
 
     if not user["is_admin"]:
         with st.expander("🗑️ Delete my account"):
@@ -136,13 +170,14 @@ def account_tab(user):
                     st.stop()
                 delete_account(user["id"])
                 st.session_state.clear()
+                st.session_state["logged_out"] = True
                 st.rerun()
         return
 
     # ---------- Admin only ----------
     st.markdown("### 🛡️ Admin: users")
-    st.caption("AI uses YOUR API key, so it's for Krypton Pro subscribers only. "
-               "'Free Pro' gives someone Pro without paying (you pay their AI, same monthly cap).")
+    st.caption("AI features need a Krypton Pro subscription. "
+               "'Free Pro' gives someone Pro without paying (same monthly AI limit).")
     for other in all_users():
         with st.container(border=True):
             left, middle, right = st.columns([2, 1.2, 1])
