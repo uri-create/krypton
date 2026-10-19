@@ -15,6 +15,7 @@
 import datetime as dt
 import json
 import os
+import re
 
 from sqlalchemy import (Boolean, Column, Integer, LargeBinary, MetaData, String, Table, Text, create_engine, delete,
                         func, insert, select, text, update)
@@ -48,6 +49,11 @@ def _database_url():
     if MISCONFIGURED:
         return "sqlite://"  # throw-away in-memory database; the app refuses to run anyway (see app.py)
     if url:
+        # Neon adds "channel_binding=require", which the database driver here rejects; the connection
+        # is still encrypted by "sslmode=require", so we just drop it.
+        url = re.sub(r"[?&]channel_binding=[^&]*", "", url.strip())
+        if "?" not in url and "&" in url:
+            url = url.replace("&", "?", 1)
         # Neon/Supabase give "postgres://..." or "postgresql://..."; tell SQLAlchemy to use psycopg 3
         return url.replace("postgres://", "postgresql+psycopg://", 1).replace(
             "postgresql://", "postgresql+psycopg://", 1)
