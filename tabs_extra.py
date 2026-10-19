@@ -11,7 +11,7 @@ import streamlit as st
 
 from analyst import api_key_available, ask
 from backtest import load_results, run_backtest, summarise
-from briefing import list_briefings, read_briefing, write_briefing
+from briefing import briefing_exists_today, list_briefings, read_briefing, write_briefing
 from panels import line_chart, subtitle
 from portfolio import exposure, holding_prices, load_portfolio, lookup_holding, save_portfolio
 from why_moved import explain, load_today, week_move
@@ -430,10 +430,12 @@ def analyst_tab(state, user):
 def briefing_tab(state, user):
     st.markdown("### Daily briefing")
     st.caption("A 2-minute summary: today's market reading, the most serious world situations, your portfolio "
-               "and the week's biggest market moves. Press the button to write today's.")
-    if st.button("Write today's briefing now", type="primary"):
+               "and the week's biggest market moves. A new one is written automatically each day.")
+    if not briefing_exists_today(user["store"]):  # first visit today: write today's from the live data
         write_briefing(state, user["store"])
-        st.success("Written.")
+    if st.button("Update today's briefing with the latest data"):
+        write_briefing(state, user["store"])
+        st.success("Updated.")
     files = list_briefings(user["store"])
     if not files:
         st.info("No briefings yet. Click the button above to write today's.")

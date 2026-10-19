@@ -87,7 +87,8 @@ def _other_markets(changes):
 def _movers(universe):
     subtitle("Today's biggest movers")
     how_to_read("The largest price changes today among companies worth more than $10 billion.")
-    big = universe[(universe["market_cap"] >= 1e10) & universe["change_pct"].notna()]
+    big = universe[(universe["market_cap"] >= 1e10) & universe["change_pct"].notna()
+                   & (universe["live"] if "live" in universe else True)]
     if big.empty:
         st.caption("No price changes yet today.")
         return
@@ -194,7 +195,8 @@ def sector_page(state):
     view = pd.DataFrame({
         "Rank": shown.index + 1, "Company": shown["name"], "Ticker": shown["ticker"],
         "Market cap ($B)": shown["market_cap"] / 1e9, "Price ($)": shown["price"], "Today (%)": shown["change_pct"],
-        "Industry": shown["industry"], "Country": shown["country"]})
+        "Industry": shown["industry"], "Country": shown["country"],
+        "Price as of": shown["live"].map({True: "Live", False: "Last close"}) if "live" in shown else "Last close"})
     st.caption(f"Showing {len(view):,} of {len(table):,} companies, largest first. Click a column title to sort.")
     st.dataframe(
         view, hide_index=True, width="stretch", height=640,
@@ -204,5 +206,6 @@ def sector_page(state):
             "Price ($)": st.column_config.NumberColumn(format="%.2f"),
             "Today (%)": st.column_config.NumberColumn(format="%+.2f"),
         })
-    st.caption("Company list, sizes and prices: Nasdaq stock screener (prices can be up to 15 minutes delayed). "
-               "Sectors: GICS (S&P index members) or Nasdaq's classification.")
+    st.caption("Prices: live from Yahoo Finance for the 1,000 largest companies (refreshed every 15 minutes, "
+               "may be up to 15 minutes delayed); the last closing price for smaller ones. Company list and sizes: "
+               "Nasdaq stock screener. Sectors: GICS (S&P index members) or Nasdaq's classification.")

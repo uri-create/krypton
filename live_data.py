@@ -56,6 +56,16 @@ def _compass():
         return None
 
 
+def _live_prices():
+    """Live prices for the largest companies (needs the company list first, so it runs after it)."""
+    with _lock:
+        companies = _copies.get("universe", (0, None))[1]
+    if companies is None:
+        return None
+    from universe import live_prices
+    return live_prices(companies)
+
+
 # name: (download function, how old a copy may get before a fresh one is fetched)
 FEEDS = {
     "traffic": (get_chokepoint_traffic, 6 * HOUR),
@@ -65,8 +75,11 @@ FEEDS = {
     "weather": (_weather, 30 * MINUTE),
     "conflict_news": (_conflict_news, HOUR),
     "compass": (_compass, HOUR),
-    "universe": (_universe, 15 * MINUTE),
+    "universe": (_universe, 6 * HOUR),          # the company list itself (names, sectors, sizes)
+    "live_prices": (_live_prices, 15 * MINUTE),  # live prices for the 1,000 largest companies
 }
+OPTIONAL = {"live_prices"}  # not waited for on the very first load: added the moment it's ready
+
 
 _copies = {}        # name -> (time downloaded, data)
 _refreshing = set()  # feeds being downloaded in the background right now
@@ -95,7 +108,7 @@ def _refresh_in_background(name):
 def get_all():
     """Every feed, instantly if a copy exists. Raises if a feed has never downloaded successfully."""
     with _first_load:  # if nothing is ready yet, download the missing feeds side by side
-        missing = [name for name in FEEDS if name not in _copies]
+        missing = [name for name in FEEDS if name not in _copies and name not in OPTIONAL]
         if missing:
             with ThreadPoolExecutor(max_workers=len(missing)) as pool:
                 for future in [pool.submit(_download, name) for name in missing]:
@@ -103,7 +116,8 @@ def get_all():
     now = time.time()
     with _lock:
         for name, (_, max_age) in FEEDS.items():
-            if now - _copies[name][0] > max_age and name not in _refreshing:
+            stale = name not in _copies or now - _copies[name][0] > max_age
+            if stale and name not in _refreshing:
                 _refreshing.add(name)
                 _refresh_in_background(name)
         return {name: data for name, (_, data) in _copies.items()}
@@ -129,9 +143,20 @@ def get_state():
                                        "prices": raw["prices"], "air": raw["air"], "sea_weather": sea_weather,
                                        "hub_weather": hub_weather, "conflict_news": raw["conflict_news"]})
         _built["state"]["compass"] = raw["compass"]
-        _built["state"]["universe"] = raw["universe"]
+        from universe import apply_live
+        companies = raw["universe"]
+        if companies is not None:
+            companies = apply_live(companies, raw.get("live_prices"))
+        _built["state"]["universe"] = companies
         _built["version"] = current
     return _built["state"]
+
+
+def status():
+    """For the 'Live data status' panel: {feed: (seconds since last download, refreshing now?)}."""
+    now = time.time()
+    with _lock:
+        return {name: (now - _copies[name][0] if name in _copies else None, name in _refreshing) for name in FEEDS}
 
 
 def ready_state():

@@ -169,6 +169,8 @@ def account_tab(user):
 
     plan_section(user)
     appearance(user)
+    from data_status import data_status_panel
+    data_status_panel()
 
     st.caption(f"You stay logged in on this device for {STAY_LOGGED_IN_DAYS} days.")
     if st.button("Log out"):

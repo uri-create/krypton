@@ -18,6 +18,7 @@ from billing import handle_return, pro_page
 from compass import READINGS, reading
 from clusters_tab import clusters_tab
 from compass_tab import compass_tab
+from data_status import last_update_text
 from data_sources import CHOKEPOINTS, get_headlines
 from explain_layers import air_hub_status
 from globe import krypton_globe, to_event_id
@@ -191,7 +192,8 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 
 .hud-right {{ margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }}
 .hud-pill {{ border: 1px solid; border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: 0.9rem; }}
-.hud-user {{ color: var(--muted); font-size: 0.85rem; }}
+.hud-user {{ color: var(--muted); font-size: 0.85rem; text-align: right; line-height: 1.5; }}
+.hud-fresh {{ color: #6f6f7a; font-size: 0.74rem; }}
 
 /* Market Compass hero */
 .hero {{ border: 1px solid var(--line); border-radius: 20px; padding: 22px 26px 18px; margin: 6px 0 14px;
@@ -434,7 +436,7 @@ st.markdown(f"""
   <div class="hud-tag">CLASSIFIED // MARKET INTELLIGENCE</div>
   <div class="hud-right">
     {reading_html}
-    <div class="hud-user">{html.escape(user['username'])}{' · admin' if user['is_admin'] else ''}</div>
+    <div class="hud-user">{html.escape(user['username'])}{' · admin' if user['is_admin'] else ''}<br><span class="hud-fresh">{last_update_text()}</span></div>
   </div>
 </div>
 """, unsafe_allow_html=True)

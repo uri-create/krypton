@@ -35,7 +35,7 @@ def build_briefing_text(state, store):
     events = sorted(state["events"], key=lambda e: -rank(e["severity"]))
     critical = [e for e in events if e["severity"] == "Critical"]
     high = [e for e in events if e["severity"] == "High"]
-    lines = [f"# Krypton daily briefing · {now:%A %d %B %Y}", ""]
+    lines = [f"# Krypton daily briefing · {now:%A %d %B %Y}", f"_Written at {now:%H:%M} from the live data._", ""]
 
     # --- Headline numbers
     lines += ["## At a glance",

@@ -108,3 +108,43 @@ def money(value):
         if value >= size:
             return f"${value / size:,.2f}{unit}" if unit == "T" else f"${value / size:,.1f}{unit}"
     return f"${value:,.0f}"
+
+
+LIVE_COUNT = 1000  # live prices for this many of the largest companies (covers every tile and big mover)
+
+
+def live_prices(table, count=LIVE_COUNT):
+    """Live prices from Yahoo Finance for the largest companies: {ticker: (price, previous close, as-of date)}.
+    (Nasdaq's full list only has the previous trading day's prices.)"""
+    import yfinance as yf
+    # the largest companies overall, plus the 9 largest of every sector (they're the tiles on the Markets tab)
+    tickers = list(dict.fromkeys(list(table["ticker"].head(count))
+                                 + list(table.groupby("sector", sort=False).head(9)["ticker"])))
+    data = yf.download([t.replace(".", "-") for t in tickers], period="5d", interval="1d", progress=False,
+                       auto_adjust=False, threads=True)["Close"]
+    found = {}
+    for ticker in tickers:
+        column = ticker.replace(".", "-")
+        if column not in data:
+            continue
+        series = data[column].dropna()
+        if len(series) >= 2:
+            found[ticker] = (float(series.iloc[-1]), float(series.iloc[-2]), series.index[-1].date())
+    return found
+
+
+def apply_live(table, live):
+    """The company list with live prices, today's moves and market caps for every company we have a live price
+    for (column 'live' says which). Re-sorted biggest first."""
+    if not live:
+        return table.assign(live=False)
+    table = table.copy()
+    table["live"] = table["ticker"].isin(live)
+    for i in table.index[table["live"]]:
+        price, previous, _ = live[table.at[i, "ticker"]]
+        old_price = table.at[i, "price"]
+        if old_price:
+            table.at[i, "market_cap"] = table.at[i, "market_cap"] * price / old_price
+        table.at[i, "price"] = price
+        table.at[i, "change_pct"] = (price / previous - 1) * 100 if previous else None
+    return table.sort_values("market_cap", ascending=False).reset_index(drop=True)
