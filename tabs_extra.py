@@ -373,11 +373,12 @@ def alerts_tab(state, user):
                                        value=settings["min_severity"] if settings["min_severity"] != "Low" else "Moderate")
             categories = st.multiselect("Types of events", list(CATEGORIES), default=settings["categories"])
             portfolio_only = st.toggle("Only events that affect my portfolio", value=settings["portfolio_only"])
-            desktop = st.toggle("Windows desktop notifications", value=settings["desktop"])
+            desktop = st.toggle("Windows desktop notifications (this PC only)", value=settings["desktop"])                 if user["is_admin"] else settings["desktop"]  # pop-ups only work on the owner's own computer
             telegram = st.toggle("Telegram messages to my phone", value=settings["telegram"])
             chat_id = st.text_input("Your Telegram chat ID (optional)", value=settings.get("telegram_chat_id", ""),
                                     max_chars=20,
-                                    help="See TELEGRAM_SETUP.md, step 2. Lets the Krypton bot message YOU.")
+                                    help="Message the Krypton bot on Telegram, then paste the chat ID it gives you. "
+                                         "Lets the bot message YOU.")
             if st.form_submit_button("💾 Save settings", type="primary"):
                 chat_id = chat_id.strip() if re.fullmatch(r"-?[0-9]{1,20}", chat_id.strip()) else ""
                 save_settings(store, {**settings, "min_severity": minimum, "categories": categories,

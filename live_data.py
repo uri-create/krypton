@@ -37,6 +37,14 @@ def _conflict_news():
     return get_many_headlines({name: zone["news"] for name, zone in CONFLICT_ZONES.items()})
 
 
+def _compass():
+    try:
+        from compass import build
+        return build()
+    except Exception:  # the rest of Krypton still works without it
+        return None
+
+
 # name: (download function, how old a copy may get before a fresh one is fetched)
 FEEDS = {
     "traffic": (get_chokepoint_traffic, 6 * HOUR),
@@ -45,6 +53,7 @@ FEEDS = {
     "air": (_air, 15 * MINUTE),
     "weather": (_weather, 30 * MINUTE),
     "conflict_news": (_conflict_news, HOUR),
+    "compass": (_compass, HOUR),
 }
 
 _copies = {}        # name -> (time downloaded, data)
@@ -107,5 +116,6 @@ def get_state():
         _built["state"] = build_state({"traffic": raw["traffic"], "disasters": raw["disasters"],
                                        "prices": raw["prices"], "air": raw["air"], "sea_weather": sea_weather,
                                        "hub_weather": hub_weather, "conflict_news": raw["conflict_news"]})
+        _built["state"]["compass"] = raw["compass"]
         _built["version"] = current
     return _built["state"]

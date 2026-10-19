@@ -27,7 +27,9 @@ LIVE KRYPTON DATA ({time}):
 
 def live_summary(state, store, backtest_overall=None, limit=30):
     """A compact text version of the dashboard for the AI to read."""
-    lines = []
+    from compass import summary_line
+    weather = summary_line(state.get("compass"))
+    lines = [f"MARKET COMPASS: {weather}", ""] if weather else []
     events = sorted(state["events"], key=lambda e: -rank(e["severity"]))[:limit]
     for e in events:
         markets = "; ".join(f"{d}{m}" for m, d, _ in e["impacts"][:5])

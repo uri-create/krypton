@@ -1,36 +1,31 @@
 # app.py
-# Krypton: a live global situation monitor.
-# Shipping chokepoints, air cargo hubs, weather, military activity, earthquakes and markets,
-# on one dark map. Click any icon for a full breakdown: what's happening, why, and what it affects.
+# Krypton: a stock market guide built on a live global situation monitor.
+# 🧭 Market Compass (today's market weather + honest odds), 🌍 a live globe of shipping, air cargo,
+# weather, military activity and disasters, 📈 ~120 markets, your portfolio, alerts and an AI analyst.
 #
 # Run it FROM THIS FOLDER (so the dark theme in .streamlit/config.toml loads):
 #   cd C:\Users\uri\Projects\WorldWatch
 #   python -m streamlit run app.py
 
-import datetime as dt
 import html
-import math
 
-import folium
-import plotly.graph_objects as go
 import streamlit as st
-from streamlit_folium import st_folium
 
-from analysis import STATUS_STYLE, build_briefing, chokepoint_status, describe_move, price_changes
-from data_sources import (CHOKEPOINTS, get_air_history, get_air_traffic, get_chokepoint_traffic,
-                          get_disasters, get_headlines, get_many_headlines, get_prices, get_weather)
-from explain_layers import air_hub_status, military_intensity, weather_flags
-from layers import AIR_HUBS, AIR_ROUTES, CATEGORIES, CONFLICT_ZONES, SEA_ROUTES
-from live_data import get_state
-from globe import krypton_globe, to_event_id
-from markets import SECTORS
-from tabs_extra import alerts_tab, analyst_tab, briefing_tab, portfolio_tab, track_record_tab
+from analysis import STATUS_STYLE, build_briefing
 from auth_ui import account_tab, login_gate
 from billing import handle_return, pro_page
+from compass import READINGS, reading
+from compass_tab import compass_tab
+from data_sources import CHOKEPOINTS, get_headlines
+from explain_layers import air_hub_status
+from globe import krypton_globe, to_event_id
+from layers import AIR_HUBS, AIR_ROUTES, CATEGORIES, SEA_ROUTES
+from live_data import get_state
+from markets_tab import markets_tab
+from panels import (SEVERITY, line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
+                    render_rough)
 from storage import MISCONFIGURED
-from panels import (SEVERITY, stat_cards, chokepoint_severity, conflict_severity, disaster_severity, hub_severity,
-                    line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
-                    render_rough, rough_severity)
+from tabs_extra import alerts_tab, analyst_tab, briefing_tab, portfolio_tab
 
 st.set_page_config(page_title="Krypton", page_icon="🔺", layout="wide")
 st.session_state["_chart_n"] = 0  # chart ID counter, see panels.chart_key
@@ -160,39 +155,38 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .stat-explain {{ color: #a3a3ae; font-size: 0.8rem; line-height: 1.45; margin-top: 8px;
                  border-top: 1px solid var(--line); padding-top: 8px; }}
 
+/* Market Compass hero */
+.hero {{ border: 1px solid var(--line); border-radius: 20px; padding: 22px 26px 18px; margin: 6px 0 14px;
+         background: radial-gradient(600px 220px at 0% 0%, color-mix(in srgb, var(--accent) 16%, transparent),
+                     transparent 70%), var(--glass-strong);
+         box-shadow: 0 20px 60px rgba(0,0,0,0.45), 0 0 50px color-mix(in srgb, var(--accent) 10%, transparent); }}
+.hero-kicker {{ color: var(--muted); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.16em; }}
+.hero-main {{ display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-top: 6px; }}
+.hero-icon {{ font-size: 2.4rem; }}
+.hero-reading {{ font-family: 'Space Grotesk', sans-serif; font-size: 2.6rem; font-weight: 700; letter-spacing: -0.01em; }}
+.hero-score {{ color: var(--muted); font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; }}
+.hero-meaning {{ color: #c9c9d1; font-size: 1rem; margin-top: 4px; }}
+.hero-foot {{ color: #6f6f7a; font-size: 0.78rem; margin-top: 10px; }}
+.gauge {{ position: relative; height: 10px; border-radius: 999px; margin: 16px 0 6px;
+          background: linear-gradient(90deg, #ff2a3d 0%, #ffb000 50%, #3ddc84 100%); opacity: 0.85; }}
+.gauge-mark {{ position: absolute; top: -5px; width: 6px; height: 20px; border-radius: 4px;
+               transform: translateX(-50%); border: 2px solid #fff; }}
+.gauge-labels {{ display: flex; justify-content: space-between; color: #6f6f7a; font-size: 0.72rem; }}
+
+/* Clean tables */
+.ktable {{ width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 6px 0 4px; }}
+.ktable th {{ text-align: left; color: var(--muted); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.06em;
+              text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid var(--line); }}
+.ktable td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--text);
+              font-variant-numeric: tabular-nums; }}
+.ktable tr:hover td {{ background: rgba(255, 42, 61, 0.04); }}
+
 /* Slim dark scrollbars */
 ::-webkit-scrollbar {{ width: 8px; height: 8px; }}
 ::-webkit-scrollbar-thumb {{ background: rgba(255, 42, 61, 0.25); border-radius: 8px; }}
 ::-webkit-scrollbar-track {{ background: transparent; }}
 </style>
 """, unsafe_allow_html=True)
-
-# Styles INSIDE the flat map: glowing icons, pulsing alerts, soft vignette
-MAP_CSS = f"""
-<style>
-.ww-div {{ background: transparent !important; border: none !important; }}
-.ww-icon {{ font-size: 18px; filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 8px currentColor);
-            transition: transform 0.15s; cursor: pointer; }}
-.ww-icon:hover {{ transform: scale(1.35); }}
-.ww-pulse {{ animation: wwpulse 1.4s ease-in-out infinite; }}
-@keyframes wwpulse {{ 0%,100% {{ opacity: 1; transform: scale(1); }} 50% {{ opacity: 0.45; transform: scale(1.25); }} }}
-.leaflet-tile-pane {{ filter: brightness(0.85) contrast(1.1) saturate(1.1); }}
-.leaflet-container {{ background: #060608 !important; border-radius: 16px; }}
-.leaflet-container::after {{
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 450;
-  background: radial-gradient(ellipse at center, transparent 60%, rgba(10, 0, 2, 0.55) 100%);
-}}
-.leaflet-bar a {{ background: #120a0c !important; color: {CYAN} !important; border-color: {GRID} !important; }}
-.leaflet-bar {{ border: 1px solid {GRID} !important; border-radius: 10px !important; overflow: hidden;
-                box-shadow: 0 0 10px rgba(255,42,61,0.2) !important; }}
-.leaflet-control-attribution {{ background: rgba(6,6,8,0.7) !important; color: #5a5a66 !important; }}
-.leaflet-control-attribution a {{ color: #5a5a66 !important; }}
-.leaflet-tooltip {{ background: rgba(14,8,10,0.95); color: #e9e9ee; border: 1px solid rgba(255,42,61,0.4);
-                    border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 12px;
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.6); }}
-</style>
-"""
-
 
 # ===========================================================================
 # DATA (cached so the page is fast and we're kind to the free servers)
@@ -205,31 +199,6 @@ def cached_headlines(topic):
         return get_headlines(topic)
     except Exception:
         return []
-
-
-def great_circle(lat1, lon1, lat2, lon2, steps=40):
-    """Points along the shortest path over the globe (how planes actually fly), so air routes curve.
-    Longitudes are 'unwrapped' so a route across the Pacific doesn't jump across the whole map."""
-    p1, l1, p2, l2 = map(math.radians, (lat1, lon1, lat2, lon2))
-    d = 2 * math.asin(math.sqrt(math.sin((p2 - p1) / 2) ** 2
-                                + math.cos(p1) * math.cos(p2) * math.sin((l2 - l1) / 2) ** 2))
-    points, previous = [], None
-    for i in range(steps + 1):
-        f = i / steps
-        a, b = math.sin((1 - f) * d) / math.sin(d), math.sin(f * d) / math.sin(d)
-        x = a * math.cos(p1) * math.cos(l1) + b * math.cos(p2) * math.cos(l2)
-        y = a * math.cos(p1) * math.sin(l1) + b * math.cos(p2) * math.sin(l2)
-        z = a * math.sin(p1) + b * math.sin(p2)
-        lat = math.degrees(math.atan2(z, math.sqrt(x * x + y * y)))
-        lon = math.degrees(math.atan2(y, x))
-        if previous is not None:
-            while lon - previous > 180:
-                lon -= 360
-            while lon - previous < -180:
-                lon += 360
-        points.append((lat, lon))
-        previous = lon
-    return points
 
 
 # ===========================================================================
@@ -257,7 +226,7 @@ if st.session_state.get("pro_page"):  # a 🔒 button was pressed: show the Kryp
 try:
     with st.spinner("Acquiring feeds: ships, aircraft, weather, conflicts, markets..."):
         state = get_state()  # instant after the first visit (see live_data.py)
-except Exception as error:
+except Exception:
     st.error("Couldn't load the live data right now. Try refreshing in a minute.")
     st.stop()
 traffic, disasters, prices, air = state["traffic"], state["disasters"], state["prices"], state["air"]
@@ -273,11 +242,17 @@ disrupted = sum(1 for s in statuses if s["Status"] == "Disrupted")
 active_conflicts = sum(1 for level in conflict_levels.values() if level in ("High", "Elevated"))
 red_alerts = sum(1 for d in disasters if d["alert"] == "Red")
 planes = f"{air['total_planes']:,}" if air else "—"
+weather_html = ""
+if state.get("compass"):
+    _name = reading(state["compass"]["today"]["Score"])
+    weather_html = (f'<div class="hud-item">Market weather<b style="color:{READINGS[_name]["colour"]}">'
+                    f'{READINGS[_name]["icon"]} {_name}</b></div>')
 st.markdown(f"""
 <div class="hud">
   <div class="hud-title">KRYPTON</div>
   <div class="live">LIVE</div>
   <div class="hud-tag">CLASSIFIED // GLOBAL SITUATION MONITOR</div>
+  {weather_html}
   <div class="hud-item">Chokepoints disrupted<b style="color:{RED}">{disrupted} / {len(statuses)}</b></div>
   <div class="hud-item">Active conflicts<b style="color:{RED}">{active_conflicts}</b></div>
   <div class="hud-item">Red disaster alerts<b style="color:{AMBER}">{red_alerts}</b></div>
@@ -290,8 +265,8 @@ st.caption("For learning and research only. Not financial advice.")
 # ===========================================================================
 # MAIN TABS
 # ===========================================================================
-main_tabs = st.tabs(["🗺️ Live map", "💼 My portfolio", "🔔 Alerts", "📊 Track record", "🤖 Ask the analyst",
-                     "📰 Daily briefing", "👤 Account"])
+main_tabs = st.tabs(["🧭 Market Compass", "🌍 World map", "📈 Markets", "💼 My portfolio", "🔔 Alerts",
+                     "🤖 Ask the analyst", "📰 Daily briefing", "👤 Account"])
 
 
 def as_fragment(tab_function, chart_base):
@@ -303,17 +278,19 @@ def as_fragment(tab_function, chart_base):
     return run
 
 
-with main_tabs[1]:
-    as_fragment(portfolio_tab, 10_000)(state, user)
+with main_tabs[0]:
+    as_fragment(compass_tab, 70_000)(state, user)
 with main_tabs[2]:
-    as_fragment(alerts_tab, 20_000)(state, user)
+    as_fragment(markets_tab, 80_000)(state)
 with main_tabs[3]:
-    as_fragment(track_record_tab, 30_000)()
+    as_fragment(portfolio_tab, 10_000)(state, user)
 with main_tabs[4]:
-    as_fragment(analyst_tab, 40_000)(state, user)
+    as_fragment(alerts_tab, 20_000)(state, user)
 with main_tabs[5]:
-    as_fragment(briefing_tab, 50_000)(state, user)
+    as_fragment(analyst_tab, 40_000)(state, user)
 with main_tabs[6]:
+    as_fragment(briefing_tab, 50_000)(state, user)
+with main_tabs[7]:
     as_fragment(account_tab, 60_000)(user)
 
 
@@ -342,79 +319,27 @@ def map_and_panel():
     map_col, panel_col = st.columns([3, 2])
 
     with map_col:
-        view = st.radio("View", ["🌍 Globe", "🗺️ Flat map"], horizontal=True, label_visibility="collapsed")
-        if view == "🌍 Globe":
-            # The globe gets plain data: events, shipping lanes and air routes
-            globe_events = [{"id": e["id"], "lat": e["lat"], "lng": e["lon"], "icon": e["icon"],
-                             "colour": e["colour"], "pulse": e["pulse"], "tooltip": e["tooltip"]} for e in visible]
-            sea, air_arcs = [], []
-            if show_routes and "Shipping" in shown:
-                order = list(STATUS_STYLE)
-                for route, info in SEA_ROUTES.items():
-                    worst = max((status_by_name[c]["Status"] for c in info["chokepoints"] if c in status_by_name),
-                                key=order.index, default="Normal")
-                    worst = "Normal" if worst == "Unusually busy" else worst
-                    sea.append({"coords": [list(p) for p in info["points"]], "colour": STATUS_STYLE[worst]["colour"],
-                                "dashed": worst == "Disrupted", "label": f"🛳️ {route} · {worst}"})
-            if show_routes and "Air cargo" in shown:
-                for a, b in AIR_ROUTES:
-                    air_arcs.append({"startLat": AIR_HUBS[a]["lat"], "startLng": AIR_HUBS[a]["lon"],
-                                     "endLat": AIR_HUBS[b]["lat"], "endLng": AIR_HUBS[b]["lon"], "label": f"✈️ {a} ⇄ {b}"})
-            picked = krypton_globe(globe_events, sea, air_arcs, height=640, key="globe")
-            if picked and picked.get("t") != st.session_state.get("last_globe_click"):
-                st.session_state["last_globe_click"] = picked["t"]
-                st.session_state["selected"] = to_event_id(picked["id"])
-                st.rerun(scope="fragment")  # redraw just the map + side panel for the clicked event
-        else:
-            world_map = folium.Map(
-                location=[24, 45], zoom_start=2, min_zoom=2, max_zoom=12, world_copy_jump=True,
-                tiles="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-                attr="Imagery &copy; Esri",
-            )
-            # Country borders + names on top of the satellite photos (free Esri reference layer)
-            folium.TileLayer(
-                tiles="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-                attr="Labels &copy; Esri", overlay=True, opacity=0.85,
-            ).add_to(world_map)
-            world_map.get_root().header.add_child(folium.Element(MAP_CSS))
-
-            if show_routes and "Shipping" in shown:
-                order = list(STATUS_STYLE)
-                for route, info in SEA_ROUTES.items():
-                    worst = max((status_by_name[c]["Status"] for c in info["chokepoints"] if c in status_by_name),
-                                key=order.index, default="Normal")
-                    if worst == "Unusually busy":
-                        worst = "Normal"
-                    folium.PolyLine(info["points"], color=STATUS_STYLE[worst]["colour"], weight=1.6, opacity=0.55,
-                                    dash_array="6 6" if worst == "Disrupted" else None,
-                                    tooltip=f"🛳️ {route.upper()} · route status: {worst}").add_to(world_map)
-            if show_routes and "Air cargo" in shown:
-                for a, b in AIR_ROUTES:
-                    ha, hb = AIR_HUBS[a], AIR_HUBS[b]
-                    folium.PolyLine(great_circle(ha["lat"], ha["lon"], hb["lat"], hb["lon"]), color=CYAN, weight=1,
-                                    opacity=0.35, dash_array="2 6", tooltip=f"✈️ {a} ⇄ {b}").add_to(world_map)
-
-            for e in visible:
-                pulse = " ww-pulse" if e["pulse"] else ""
-                folium.Marker(
-                    [e["lat"], e["lon"]],
-                    icon=folium.DivIcon(
-                        html=f'<i class="fa-solid {e["icon"]} ww-icon{pulse}" style="color:{e["colour"]}"></i>',
-                        icon_size=(24, 24), icon_anchor=(12, 12), class_name="ww-div"),
-                    tooltip=e["tooltip"],
-                ).add_to(world_map)
-
-            clicked = st_folium(world_map, height=600, use_container_width=True, key="worldmap") or {}
-
-            # Which icon was clicked? Match the click position to the nearest visible icon.
-            spot = clicked.get("last_object_clicked") or clicked.get("last_clicked")
-            if spot and spot != st.session_state.get("last_spot") and visible:
-                st.session_state["last_spot"] = spot
-                nearest = min(visible, key=lambda e: (e["lat"] - spot["lat"]) ** 2 + (e["lon"] - spot["lng"]) ** 2)
-                reach = 10 / 2 ** max((clicked.get("zoom") or 2) - 2, 0)  # "near" shrinks as you zoom in
-                if (nearest["lat"] - spot["lat"]) ** 2 + (nearest["lon"] - spot["lng"]) ** 2 <= reach ** 2:
-                    st.session_state["selected"] = nearest["id"]
-
+        # The globe gets plain data: events, shipping lanes and air routes
+        globe_events = [{"id": e["id"], "lat": e["lat"], "lng": e["lon"], "icon": e["icon"],
+                         "colour": e["colour"], "pulse": e["pulse"], "tooltip": e["tooltip"]} for e in visible]
+        sea, air_arcs = [], []
+        if show_routes and "Shipping" in shown:
+            order = list(STATUS_STYLE)
+            for route, info in SEA_ROUTES.items():
+                worst = max((status_by_name[c]["Status"] for c in info["chokepoints"] if c in status_by_name),
+                            key=order.index, default="Normal")
+                worst = "Normal" if worst == "Unusually busy" else worst
+                sea.append({"coords": [list(p) for p in info["points"]], "colour": STATUS_STYLE[worst]["colour"],
+                            "dashed": worst == "Disrupted", "label": f"🛳️ {route} · {worst}"})
+        if show_routes and "Air cargo" in shown:
+            for a, b in AIR_ROUTES:
+                air_arcs.append({"startLat": AIR_HUBS[a]["lat"], "startLng": AIR_HUBS[a]["lon"],
+                                 "endLat": AIR_HUBS[b]["lat"], "endLng": AIR_HUBS[b]["lon"], "label": f"✈️ {a} ⇄ {b}"})
+        picked = krypton_globe(globe_events, sea, air_arcs, height=640, key="globe")
+        if picked and picked.get("t") != st.session_state.get("last_globe_click"):
+            st.session_state["last_globe_click"] = picked["t"]
+            st.session_state["selected"] = to_event_id(picked["id"])
+            st.rerun(scope="fragment")  # redraw just the map + side panel for the clicked event
         # Map key: icon SHAPE = type of event, icon COLOUR = severity
         shapes = " &nbsp;&nbsp; ".join(f"<i class='fa-solid {CATEGORIES[c]['icon']}'></i> {c}" for c in CATEGORIES)
         colours = " &nbsp;&nbsp; ".join(
@@ -447,12 +372,9 @@ def map_and_panel():
 
 
 @st.fragment
-def trends_and_markets():
-    """The charts and market tiles under the map. Changing a dropdown redraws only this part."""
+def shipping_trends():
+    """Shipping details under the map. Changing the dropdown redraws only this part."""
     st.session_state["_chart_n"] = 5_000
-    # ===========================================================================
-    # DETAIL SECTIONS
-    # ===========================================================================
     st.markdown("### 🚢 Chokepoints at a glance")
     st.caption("Each row is one of the world's key shipping routes. 'Ships/day' = average number of ships passing "
                "through each day; the % columns compare that with normal (the last 3 months) and with a year ago. "
@@ -460,57 +382,23 @@ def trends_and_markets():
     st.dataframe([{"": STATUS_STYLE[s["Status"]]["emoji"], **{k: v for k, v in s.items() if k != "Data up to"}}
                   for s in statuses], hide_index=True, width="stretch")
 
-    st.markdown("### 🔍 Trends")
+    st.markdown("### 🔍 Compare shipping routes")
     problem_first = sorted(statuses, key=lambda s: list(STATUS_STYLE).index(s["Status"]))
-    left, right = st.columns(2)
+    left, right = st.columns([3, 2])
     with left:
         chosen = st.selectbox("Shipping chokepoint", [s["Chokepoint"] for s in problem_first])
         daily = traffic[traffic["chokepoint"] == chosen].set_index("date").sort_index()
         line_chart(daily["ships"].rolling(7).mean(), f"Ships passing through {chosen} per day (7-day average)",
-                   "Ships per day", height=300,
+                   "Ships per day", height=320,
                    explain="Each point is the average number of ships per day over the week before it. "
                            "Pick a different chokepoint above to compare.")
-        kinds = ["tankers", "container ships", "bulk carriers"]
-        p1, p2 = st.columns(2)
-        with p1:
-            pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-7:].mean().values), "Ship types: this week",
-                      note="Tankers carry oil & gas, container ships carry goods, bulk carriers carry grain, coal and ore.")
-        with p2:
-            if len(daily) >= 372:
-                pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-372:-365].mean().values),
-                          "Ship types: a year ago", note="The same mix a year ago, to spot which ships are staying away.")
     with right:
-        sector = st.selectbox("Sector", list(SECTORS))
-        market = st.selectbox("Market", [m for m in SECTORS[sector] if m in prices.columns])
-        line_chart(prices[market], f"{market}: daily price, last 12 months", "Price", colour="#ffb000", height=300,
-                   explain="The price at the end of each trading day over the last year.")
-        month_moves = {m: (changes.get(m) or {}).get("1 month (%)") for m in SECTORS[sector]}
-        risers = sum(1 for v in month_moves.values() if v is not None and v > 1)
-        fallers = sum(1 for v in month_moves.values() if v is not None and v < -1)
-        flat = len(month_moves) - risers - fallers
-        pie_chart(["Up more than 1%", "Down more than 1%", "About flat"], [risers, fallers, flat],
-                  f"{sector}: how its markets moved this month",
-                  note=f"How many of the {len(month_moves)} {sector.split(' ', 1)[-1].lower()} markets Krypton follows "
-                       "went up, went down, or stayed about flat over the last month.")
-
-    st.markdown("### 📈 Markets by sector")
-    st.caption("Each card shows a market's latest price, how much it moved this month (green = up, red = down), "
-               "and its moves over the last week and year.")
-    for tab, sector in zip(st.tabs(list(SECTORS)), SECTORS):
-        with tab:
-            cards = []
-            for name in [m for m in SECTORS[sector] if m in changes]:
-                c = changes[name]
-                month = c["1 month (%)"]
-                cards.append({"label": name, "value": f"{c['Price']:,.2f}",
-                              "delta": f"{month:+.1f}% this month" if month is not None else None,
-                              "tone": "bad" if (month or 0) < 0 else "good",
-                              "explain": f"Latest price. Last week: {describe_move(c['1 week (%)'])} · "
-                                         f"last year: {describe_move(c['1 year (%)'])}."})
-            stat_cards(cards, per_row=4)
+        kinds = ["tankers", "container ships", "bulk carriers"]
+        pie_chart([k.capitalize() for k in kinds], list(daily[kinds].iloc[-7:].mean().values), "Ship types: this week",
+                  note="Tankers carry oil & gas, container ships carry goods, bulk carriers carry grain, coal and ore.")
 
 
-with main_tabs[0]:
+with main_tabs[1]:
     map_and_panel()
     # ===========================================================================
     # BRIEFING
@@ -529,6 +417,6 @@ with main_tabs[0]:
             lines.append(f"☁️ **Severe weather right now at:** {', '.join(bad_weather)}.")
         for line in lines:
             st.markdown(f"- {line}")
-        st.caption(f"Sources: IMF PortWatch (ships, ~1 week delay), OpenSky (live aircraft), Open-Meteo (weather), "
-                   f"GDACS (disasters), Google News (headlines), Yahoo Finance (prices).")
-    trends_and_markets()
+        st.caption("Sources: IMF PortWatch (ships, ~1 week delay), OpenSky (live aircraft), Open-Meteo (weather), "
+                   "GDACS (disasters), Google News (headlines), Yahoo Finance (prices).")
+    shipping_trends()

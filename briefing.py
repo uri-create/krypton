@@ -46,6 +46,10 @@ def build_briefing_text(state, store):
               f" of {len(state['statuses'])}**.",
               f"- Aircraft tracked right now: **{state['air']['total_planes']:,}**." if state.get("air") else "",
               ""]
+    from compass import summary_line
+    weather = summary_line(state.get("compass"))
+    if weather:
+        lines[lines.index("## At a glance") + 1:lines.index("## At a glance") + 1] = [f"- 🧭 {weather}"]
 
     # --- What changed in the last 24 hours
     since = now - dt.timedelta(hours=24)
