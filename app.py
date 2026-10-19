@@ -26,7 +26,7 @@ from globe import krypton_globe, to_event_id
 from markets import SECTORS
 from tabs_extra import alerts_tab, analyst_tab, briefing_tab, portfolio_tab, track_record_tab
 from auth_ui import account_tab, login_gate
-from billing import handle_return
+from billing import handle_return, pro_page
 from storage import MISCONFIGURED
 from panels import (SEVERITY, chokepoint_severity, conflict_severity, disaster_severity, hub_severity,
                     line_chart, pie_chart, render_chokepoint, render_conflict, render_disaster, render_hub,
@@ -213,6 +213,9 @@ if MISCONFIGURED:  # online without the real database: lock everything (see stor
     st.stop()
 user = login_gate()
 handle_return(user)  # just came back from paying on Stripe?
+if st.session_state.get("pro_page"):  # a 🔒 button was pressed: show the Krypton Pro page instead
+    pro_page(user)
+    st.stop()
 
 # ===========================================================================
 # LOAD

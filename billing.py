@@ -68,9 +68,10 @@ def add_cost(user, dollars):
 # ---------------------------------------------------------------------------
 def ai_access(user):
     """(True, "") if this user may run an AI request now, else (False, reason)."""
-    if user.get("is_admin"):
+    if user.get("is_admin") and not previewing_as_free():
         return True, ""
-    if not (is_pro(user) or user.get("ai_allowed")):  # ai_allowed = a free pass the admin gave them
+    free_pass = user.get("ai_allowed") and not user.get("is_admin")  # a free Pro pass the admin gave someone
+    if not (is_pro(user) or free_pass):
         return False, "locked"
     if month_spend(user) >= MONTHLY_AI_BUDGET:
         return False, "used_up"
@@ -174,54 +175,104 @@ def manage_url(user):
 
 # ---------------------------------------------------------------------------
 # What the user sees
+#   Locked AI features show a 🔒 button. Pressing it opens the Krypton Pro page (pro_page),
+#   which app.py shows INSTEAD of the normal tabs until the user presses "Back".
 # ---------------------------------------------------------------------------
-PRO_FEATURES = ("🧠 **Why it moved**: the real news behind each of your stocks\n"
-                "- 🤖 **Ask the analyst**: chat with an AI that sees everything on Krypton\n"
-                "- 🔬 **Deep research**: a full sourced report on any event")
+PRO_FEATURES = ["🧠 **Why it moved**: the real news behind each of your stocks",
+                "🤖 **Ask the analyst**: chat with an AI that sees everything on Krypton",
+                "🔬 **Deep research**: a full sourced report on any event"]
+FREE_FEATURES = "live map, event panels, portfolio prices, alerts, track record and the daily briefing"
 
 
-def subscribe_button(user, key):
-    """Subscribe button (or a 'coming soon' note before Stripe is set up)."""
-    if not stripe_ready():
-        st.caption("Subscriptions open soon.")
-        return
-    if st.button(f"⭐ Get Krypton Pro, {PRICE_TEXT}", key=f"sub_{key}", type="primary"):
-        try:
-            st.link_button("Continue to secure payment (Stripe) →", checkout_url(user))
-            st.caption("After paying, come back, log in, and press **I've paid, unlock Pro** on the 👤 Account tab.")
-        except Exception:
-            st.error("Couldn't open the payment page right now. Please try again in a minute.")
+def open_pro_page():
+    st.session_state["pro_page"] = True
 
 
-def locked_message(user, reason, key):
-    """Shown instead of an AI feature the user can't use."""
+def close_pro_page():
+    st.session_state["pro_page"] = False
+
+
+def previewing_as_free():
+    """The admin can switch on 'preview as a free user' to see exactly what non-paying users see."""
+    return bool(st.session_state.get("preview_free"))
+
+
+def locked_message(user, reason, key, label="Unlock with Krypton Pro"):
+    """Shown instead of an AI feature the user can't use: a 🔒 button that opens the Krypton Pro page."""
     if reason == "used_up":
         st.warning("You've used this month's AI allowance. It resets on the 1st of next month.")
         return
-    st.info(f"🔒 **This is part of Krypton Pro ({PRICE_TEXT}).**\n\n- {PRO_FEATURES}\n\n"
-            "Everything else on Krypton stays free.")
-    subscribe_button(user, key)
+    st.button(f"🔒 {label}", key=f"lock_{key}", on_click=open_pro_page,
+              help=f"Needs Krypton Pro ({PRICE_TEXT})")
+    st.caption(f"🔒 Krypton Pro feature ({PRICE_TEXT}). Press the button to see the plan.")
+
+
+def _checkout_link(user):
+    """A Stripe payment page for this user, made once per visit (Stripe pages stay valid for 24 hours)."""
+    if "checkout_url" not in st.session_state:
+        st.session_state["checkout_url"] = checkout_url(user)
+    return st.session_state["checkout_url"]
+
+
+def check_payment_button(user, key):
+    if stripe_ready() and st.button("I've paid, unlock Pro", key=f"paid_{key}"):
+        try:
+            if refresh(user):
+                st.success("⭐ Krypton Pro is unlocked!")
+                close_pro_page()
+                st.rerun()
+            else:
+                st.warning("No payment found yet. If you just paid, wait a minute and try again.")
+        except Exception:
+            st.error("Couldn't reach the payment system. Try again in a minute.")
+
+
+def pro_page(user):
+    """The Krypton Pro subscription page."""
+    st.button("← Back to Krypton", on_click=close_pro_page)
+    st.markdown("## ⭐ Krypton Pro")
+    st.markdown(f"<span style='font-size:2.2rem;font-weight:800;color:#ff2a3d'>{PRICE_TEXT.split('/')[0]}</span>"
+                f" <span style='color:#77777f'>/ month · cancel any time</span>", unsafe_allow_html=True)
+    st.markdown("**You get:**\n" + "\n".join(f"- {line}" for line in PRO_FEATURES))
+    st.caption(f"Always free: {FREE_FEATURES}. Not financial advice.")
+
+    if ai_access(user)[0] and not user.get("is_admin"):
+        st.success("✅ You already have Krypton Pro.")
+        return
+    if not stripe_ready():
+        st.info("🚧 Subscriptions open very soon. Check back shortly!")
+        return
+    try:
+        st.link_button(f"⭐ Subscribe for {PRICE_TEXT}", _checkout_link(user), type="primary")
+        st.caption("You'll pay on Stripe's secure page; Krypton never sees your card. "
+                   "After paying you're sent back here and Pro unlocks.")
+    except Exception:
+        st.error("Couldn't open the payment page right now. Please try again in a minute.")
+    check_payment_button(user, "pro_page")
 
 
 def handle_return(user):
     """After Stripe sends the user back with ?paid=1, check their subscription straight away."""
     if st.query_params.get("paid") == "1":
         st.query_params.clear()
+        st.session_state.pop("checkout_url", None)
         try:
             if refresh(user):
+                close_pro_page()
                 st.success("⭐ Welcome to Krypton Pro! AI features are unlocked.")
             else:
                 st.info("Payment received? It can take a minute to show up. "
-                        "Press **I've paid, unlock Pro** on the 👤 Account tab.")
+                        "Press **I've paid, unlock Pro** on the ⭐ Krypton Pro page.")
         except Exception:
-            st.info("Couldn't check your payment right now. Try the 👤 Account tab in a minute.")
+            st.info("Couldn't check your payment right now. Try again in a minute.")
 
 
 def plan_section(user):
     """The 'Your plan' part of the Account tab."""
     st.markdown("#### ⭐ Your plan")
     if user.get("is_admin"):
-        st.caption(f"Admin: AI unlimited. AI spending this month: ${month_spend(user):.2f}.")
+        st.caption(f"Owner: AI is always unlocked for you. AI spending this month: ${month_spend(user):.2f}.")
+        st.toggle("👀 Preview as a free user (see what non-paying users see)", key="preview_free")
         return
     pro = is_pro(user)
     if pro or user.get("ai_allowed"):
@@ -238,13 +289,4 @@ def plan_section(user):
                 st.link_button("Manage or cancel subscription", url)
         return
     st.markdown("**Free plan**")
-    locked_message(user, "locked", "account")
-    if stripe_ready() and st.button("I've paid, unlock Pro"):
-        try:
-            if refresh(user):
-                st.success("⭐ Krypton Pro is unlocked!")
-                st.rerun()
-            else:
-                st.warning("No payment found yet. If you just paid, wait a minute and try again.")
-        except Exception:
-            st.error("Couldn't reach the payment system. Try again in a minute.")
+    st.button(f"⭐ See Krypton Pro ({PRICE_TEXT})", on_click=open_pro_page, type="primary", key="plan_pro")

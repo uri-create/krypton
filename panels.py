@@ -292,10 +292,8 @@ def render_deep_research(event_key, description):
     from billing import add_cost, ai_access, locked_message
     allowed, reason = ai_access(user) if user else (False, "locked")
     if not allowed:
-        if saved:
-            st.caption("🔒 Running fresh research is part of Krypton Pro.")
-        else:
-            locked_message(user, reason, f"research_{event_key}")
+        locked_message(user, reason, f"research_{event_key}",
+                       "🔄 Refresh research" if saved else "🔬 Run deep research")
     elif not api_key_available():
         st.caption("AI research is unavailable right now. Please try again later.")
     else:

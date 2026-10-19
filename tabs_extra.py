@@ -29,11 +29,11 @@ def ai_ready(user):
     return ai_access(user)[0] and api_key_available()
 
 
-def ai_off(user, key):
-    """Explain why an AI feature is unavailable (and offer Krypton Pro)."""
+def ai_off(user, key, label):
+    """A locked AI feature: a 🔒 button that opens the Krypton Pro page."""
     allowed, reason = ai_access(user)
     if not allowed:
-        locked_message(user, reason, key)
+        locked_message(user, reason, key, label)
     else:
         st.caption("AI is offline right now.")
 
@@ -235,7 +235,7 @@ def portfolio_tab(state, user):
             st.rerun()
 
     elif missing and not ai_access(user)[0]:
-        locked_message(user, ai_access(user)[1], "portfolio")
+        locked_message(user, ai_access(user)[1], "portfolio", "🧠 Find out why my stocks moved this week")
 
     # ---- One short card per stock
     for h in holdings:
@@ -504,7 +504,7 @@ def analyst_tab(state, user):
     st.caption("Chat with an AI analyst that sees everything on Krypton right now (events, severity, affected "
                "markets, your portfolio, the track record) and searches the web for the latest news.")
     if not ai_ready(user):
-        ai_off(user, "analyst")
+        ai_off(user, "analyst", "Ask the analyst")
         st.markdown("**Example questions you'll be able to ask:**\n" + "\n".join(f"- {q}" for q in EXAMPLES))
         return
 
