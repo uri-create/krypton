@@ -71,7 +71,7 @@ def describe_weather(w):
     text += "."
     flags = weather_flags(w)
     if flags:
-        text += " ⚠️ " + "; ".join(f"**{name}** ({detail})" for name, detail in flags) + "."
+        text += " " + "; ".join(f"**{name}** ({detail})" for name, detail in flags) + "."
     else:
         text += " Nothing here should slow ships or flights."
     return text
@@ -90,21 +90,21 @@ WEATHER_REASONS = {
 
 def explain_rough_weather(place, kind, w):
     """Report for a 'severe weather right now' icon at a chokepoint or air hub."""
-    sections = [("📊 What's happening", describe_weather(w))]
+    sections = [("What's happening", describe_weather(w))]
     reasons = []
     for name, _ in weather_flags(w):
         lowered = name.lower()
         key = next((k for k in WEATHER_REASONS if k in lowered), "rain")
         reasons.append(WEATHER_REASONS[key])
-    sections.append(("❓ Why it happens", " ".join(dict.fromkeys(reasons))))
+    sections.append(("Why it happens", " ".join(dict.fromkeys(reasons))))
     if kind == "chokepoint":
         effect = ("Ships may slow down, wait at anchor, or be held by port and canal authorities until "
                   "conditions improve. Short delays here can ripple into later arrivals at ports.")
     else:
         effect = ("Flights may be delayed, diverted or cancelled. Strong crosswinds and low visibility are "
                   "the main problems. A backlog at a hub can delay parcels for days.")
-    sections.append(("🌍 What it could affect", effect))
-    sections.append(("🧭 Conclusion",
+    sections.append(("What it could affect", effect))
+    sections.append(("Conclusion",
                      f"Weather at **{place}** is a **short-term** risk. It usually clears within hours to a "
                      "couple of days and rarely moves markets on its own, unless it's part of a big named storm."))
     return sections
@@ -136,20 +136,20 @@ def military_intensity(headlines):
 def explain_conflict(name, headlines, air, air_history, statuses, changes):
     zone = CONFLICT_ZONES[name]
     level, military, fresh = military_intensity(headlines)
-    sections = [("📜 Background: what led to this", zone["background"])]
+    sections = [("Background: what led to this", zone["background"])]
 
     text = (f"**Activity level: {level}.** {military} of the {len(headlines)} most recent headlines about "
             f"this area mention military action, {fresh} of them in the last 48 hours.")
     dated = [h["published"] for h in headlines if h.get("published")]
     if dated:
         text += f" Latest report: **{max(dated):%d %b %Y, %H:%M} UTC**."
-    sections.append(("📊 What's happening now", text + "\n\n" + news_list(headlines)))
+    sections.append(("What's happening now", text + "\n\n" + news_list(headlines)))
 
     causes = classify_causes(headlines)
     text = ("Themes in the latest news (number of headlines):\n" + "\n".join(
         f"- **{cause}**: {len(evidence)}" for cause, evidence in causes[:4])) if causes \
         else "No clear theme in the latest headlines."
-    sections.append(("❓ Why (themes in the news)", text))
+    sections.append(("Why (themes in the news)", text))
 
     count = (air or {}).get("counts", {}).get(name, {}).get("airborne")
     if count is not None:
@@ -163,24 +163,24 @@ def explain_conflict(name, headlines, air, air_history, statuses, changes):
                      "what's normal here. It saves one every time it loads.)")
         text += (" Airlines avoid active war zones, so an empty sky over a normally busy region is a strong "
                  "sign of danger or closed airspace.")
-        sections.append(("✈️ Airspace", text))
+        sections.append(("Airspace", text))
 
     effects = []
     for s in statuses:
         cp = CHOKEPOINTS[s["Chokepoint"]]
         km = distance_km(zone["lat"], zone["lon"], cp["lat"], cp["lon"])
         if km < 2000:
-            effects.append(f"- 🚢 **{s['Chokepoint']}** ({km:,.0f} km away) is "
+            effects.append(f"- **{s['Chokepoint']}** ({km:,.0f} km away) is "
                            f"{STATUS_STYLE[s['Status']]['emoji']} {s['Status'].lower()}.")
     for hub_name, hub in AIR_HUBS.items():
         km = distance_km(zone["lat"], zone["lon"], hub["lat"], hub["lon"])
         if km < 1500:
-            effects.append(f"- ✈️ **{hub_name}** cargo hub is {km:,.0f} km away.")
+            effects.append(f"- **{hub_name}** cargo hub is {km:,.0f} km away.")
     text = "\n".join(effects) if effects else "No major shipping chokepoints or cargo hubs nearby."
     lines = market_lines(zone["markets"], changes)
     if lines:
         text += "\n\n**Markets to watch:**\n" + lines
-    sections.append(("🌍 What it could affect", text))
+    sections.append(("What it could affect", text))
 
     if level == "High":
         verdict = ("This conflict is **very active right now**, with frequent fresh reports of military action. "
@@ -190,7 +190,7 @@ def explain_conflict(name, headlines, air, air_history, statuses, changes):
                    "escalation, and watch nearby shipping and air traffic for early signs.")
     else:
         verdict = "The area is **relatively quiet** in recent news, but the underlying tensions remain."
-    sections.append(("🧭 Conclusion", verdict))
+    sections.append(("Conclusion", verdict))
     return sections
 
 
@@ -222,7 +222,7 @@ def air_hub_status(name, air, air_history):
 def explain_air_hub(name, air, air_history, weather, headlines, changes, conflict_levels):
     hub = AIR_HUBS[name]
     status, count = air_hub_status(name, air, air_history)
-    sections = [("🌍 What this hub is", hub["role"])]
+    sections = [("What this hub is", hub["role"])]
 
     ground = (air or {}).get("counts", {}).get(name, {}).get("on_ground")
     if count is None:
@@ -241,9 +241,9 @@ def explain_air_hub(name, air, air_history, weather, headlines, changes, conflic
             text += (" Krypton needs snapshots from at least 3 different days at this time of day before it can say "
                      "what's normal here.")
         text += f" **Status: {status}.** This counts all planes, passenger and cargo."
-    sections.append(("📊 Live air traffic", text))
+    sections.append(("Live air traffic", text))
 
-    sections.append(("🌦️ Weather now", describe_weather(weather)))
+    sections.append(("Weather now", describe_weather(weather)))
 
     causes = classify_causes(headlines)
     nearby = [c for c, info in CONFLICT_ZONES.items()
@@ -251,20 +251,20 @@ def explain_air_hub(name, air, air_history, weather, headlines, changes, conflic
               and conflict_levels.get(c) in ("High", "Elevated")]
     items = []
     if weather_flags(weather):
-        items.append("- ⚠️ **Bad weather** right now could delay flights.")
+        items.append("- **Bad weather** right now could delay flights.")
     for c in nearby:
-        items.append(f"- 🛡️ Active conflict nearby: **{c}** ({conflict_levels[c].lower()} activity). "
+        items.append(f"- Active conflict nearby: **{c}** ({conflict_levels[c].lower()} activity). "
                      "Airlines may reroute or avoid airspace.")
     if causes:
-        items.append(f"- 📰 Main theme in recent news: **{causes[0][0].lower()}** ({len(causes[0][1])} headlines).")
-    sections.append(("❓ What could be affecting it", "\n".join(items) if items else
+        items.append(f"- Main theme in recent news: **{causes[0][0].lower()}** ({len(causes[0][1])} headlines).")
+    sections.append(("What could be affecting it", "\n".join(items) if items else
                      "Nothing unusual found: no bad weather, no nearby active conflicts, no clear problem in the news."))
 
     if headlines:
-        sections.append(("📰 Latest news", news_list(headlines, 5)))
+        sections.append(("Latest news", news_list(headlines, 5)))
     lines = market_lines(hub["markets"], changes)
     if lines:
-        sections.append(("📈 Markets linked to this hub", lines))
+        sections.append(("Markets linked to this hub", lines))
 
     if status == "Unusually quiet":
         verdict = "Traffic is **well below normal**. Check the weather and news above for the reason."
@@ -276,7 +276,7 @@ def explain_air_hub(name, air, air_history, weather, headlines, changes, conflic
         verdict = "Can't judge live traffic here because of tracking gaps. Use the news and weather instead."
     else:
         verdict = "Operating **normally** as far as live data shows."
-    sections.append(("🧭 Conclusion", verdict))
+    sections.append(("Conclusion", verdict))
     return sections
 
 
@@ -285,10 +285,10 @@ def explain_air_hub(name, air, air_history, weather, headlines, changes, conflic
 # ===========================================================================
 def chokepoint_extras(name, status, headlines, weather):
     """Extra sections for a chokepoint: weather now, routes through it, and a conclusion."""
-    sections = [("🌦️ Weather & sea now", describe_weather(weather))]
+    sections = [("Weather & sea now", describe_weather(weather))]
     routes = [r for r, info in SEA_ROUTES.items() if name in info["chokepoints"]]
     if routes:
-        sections.append(("🛳️ Shipping routes through here", "\n".join(
+        sections.append(("Shipping routes through here", "\n".join(
             f"- **{r}**: {SEA_ROUTES[r]['carries']}" for r in routes)))
 
     causes = classify_causes(headlines)
@@ -305,5 +305,5 @@ def chokepoint_extras(name, status, headlines, weather):
         verdict = f"**{name} is operating normally.**"
     if weather_flags(weather):
         verdict += " Current bad weather may add short delays."
-    sections.append(("🧭 Conclusion", verdict))
+    sections.append(("Conclusion", verdict))
     return sections

@@ -2,7 +2,7 @@
 # Krypton Pro: a $14.99/month subscription that unlocks everything that costs YOU money (the AI).
 #
 #   Free for everyone:  Market Compass, live map, event panels, markets, clusters, portfolio prices, briefing.
-#   Krypton Pro only:   🧠 "Why it moved", 🤖 Ask the analyst, 🔬 Deep research (they use your API key).
+#   Krypton Pro only:   "Why it moved", Ask the analyst, Deep research (they use your API key).
 #
 # How paying works (Stripe does all the money and card handling; Krypton never sees card numbers):
 #   1. The user presses "Subscribe" -> Krypton asks Stripe for a checkout page labelled with their user id.
@@ -175,12 +175,12 @@ def manage_url(user):
 
 # ---------------------------------------------------------------------------
 # What the user sees
-#   Locked AI features show a 🔒 button. Pressing it opens the Krypton Pro page (pro_page),
+#   Locked AI features show a button. Pressing it opens the Krypton Pro page (pro_page),
 #   which app.py shows INSTEAD of the normal tabs until the user presses "Back".
 # ---------------------------------------------------------------------------
-PRO_FEATURES = ["🧠 **Why it moved**: the real news behind each of your stocks",
-                "🤖 **Ask the analyst**: chat with an AI that sees everything on Krypton",
-                "🔬 **Deep research**: a full sourced report on any event"]
+PRO_FEATURES = ["**Why it moved**: the real news behind each of your stocks",
+                "**Ask the analyst**: chat with an AI that sees everything on Krypton",
+                "**Deep research**: a full sourced report on any event"]
 FREE_FEATURES = "Market Compass, live map, markets, clusters, portfolio prices and the daily briefing"
 
 
@@ -198,14 +198,14 @@ def previewing_as_free():
 
 
 def locked_message(user, reason, key, label="Unlock with Krypton Pro"):
-    """Shown instead of an AI feature the user can't use: a 🔒 button that opens the Krypton Pro page."""
+    """Shown instead of an AI feature the user can't use: a button that opens the Krypton Pro page."""
     if reason == "used_up":
         st.warning("You've used this month's AI allowance. It resets on the 1st of next month.")
         return
-    if st.button(f"🔒 {label}", key=f"lock_{key}", help=f"Needs Krypton Pro ({PRICE_TEXT})"):
+    if st.button(f"{label}", key=f"lock_{key}", help=f"Needs Krypton Pro ({PRICE_TEXT})"):
         open_pro_page()
         st.rerun()  # the whole app, not just this tab, so the Krypton Pro page appears
-    st.caption(f"🔒 Krypton Pro feature ({PRICE_TEXT}). Press the button to see the plan.")
+    st.caption(f"Krypton Pro feature ({PRICE_TEXT}). Press the button to see the plan.")
 
 
 def _checkout_link(user):
@@ -219,7 +219,7 @@ def check_payment_button(user, key):
     if stripe_ready() and st.button("I've paid, unlock Pro", key=f"paid_{key}"):
         try:
             if refresh(user):
-                st.success("⭐ Krypton Pro is unlocked!")
+                st.success("Krypton Pro is unlocked!")
                 close_pro_page()
                 st.rerun()
             else:
@@ -231,20 +231,20 @@ def check_payment_button(user, key):
 def pro_page(user):
     """The Krypton Pro subscription page."""
     st.button("← Back to Krypton", on_click=close_pro_page)
-    st.markdown("## ⭐ Krypton Pro")
+    st.markdown("## Krypton Pro")
     st.markdown(f"<span style='font-size:2.2rem;font-weight:800;color:#ff2a3d'>{PRICE_TEXT.split('/')[0]}</span>"
                 f" <span style='color:#77777f'>/ month · cancel any time</span>", unsafe_allow_html=True)
     st.markdown("**You get:**\n" + "\n".join(f"- {line}" for line in PRO_FEATURES))
     st.caption(f"Always free: {FREE_FEATURES}. Not financial advice.")
 
     if ai_access(user)[0] and not user.get("is_admin"):
-        st.success("✅ You already have Krypton Pro.")
+        st.success("You already have Krypton Pro.")
         return
     if not stripe_ready():
-        st.info("🚧 Subscriptions open very soon. Check back shortly!")
+        st.info("Subscriptions open very soon. Check back shortly!")
         return
     try:
-        st.link_button(f"⭐ Subscribe for {PRICE_TEXT}", _checkout_link(user), type="primary")
+        st.link_button(f"Subscribe for {PRICE_TEXT}", _checkout_link(user), type="primary")
         st.caption("You'll pay on Stripe's secure page; Krypton never sees your card. "
                    "After paying you're sent back here and Pro unlocks.")
     except Exception:
@@ -260,27 +260,27 @@ def handle_return(user):
         try:
             if refresh(user):
                 close_pro_page()
-                st.success("⭐ Welcome to Krypton Pro! AI features are unlocked.")
+                st.success("Welcome to Krypton Pro! AI features are unlocked.")
             else:
                 st.info("Payment received? It can take a minute to show up. "
-                        "Press **I've paid, unlock Pro** on the ⭐ Krypton Pro page.")
+                        "Press **I've paid, unlock Pro** on the Krypton Pro page.")
         except Exception:
             st.info("Couldn't check your payment right now. Try again in a minute.")
 
 
 def plan_section(user):
     """The 'Your plan' part of the Account tab."""
-    st.markdown("#### ⭐ Your plan")
+    st.markdown("#### Your plan")
     if user.get("is_admin"):
         st.caption(f"Owner: AI is always unlocked for you. AI spending this month: ${month_spend(user):.2f}.")
-        now = st.toggle("👀 Preview as a free user (see what non-paying users see)", key="preview_free")
+        now = st.toggle("Preview as a free user (see what non-paying users see)", key="preview_free")
         if now != st.session_state.get("_preview_applied", False):
             st.session_state["_preview_applied"] = now
             st.rerun()  # the whole app, so every tab locks/unlocks (this tab runs on its own otherwise)
         return
     pro = is_pro(user)
     if pro or user.get("ai_allowed"):
-        st.markdown("**Krypton Pro** ✅" if pro else "**Free Pro pass** (given by the admin) ✅")
+        st.markdown("**Krypton Pro**" if pro else "**Free Pro pass** (given by the admin)")
         used = min(month_spend(user) / MONTHLY_AI_BUDGET, 1.0)
         st.progress(used, text=f"AI used this month: {used:.0%}")
         if pro:
@@ -293,6 +293,6 @@ def plan_section(user):
                 st.link_button("Manage or cancel subscription", url)
         return
     st.markdown("**Free plan**")
-    if st.button(f"⭐ See Krypton Pro ({PRICE_TEXT})", type="primary", key="plan_pro"):
+    if st.button(f"See Krypton Pro ({PRICE_TEXT})", type="primary", key="plan_pro"):
         open_pro_page()
         st.rerun()

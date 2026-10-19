@@ -7,11 +7,11 @@
 # Map categories: icon (Font Awesome name), colour, and the label used in the filter
 # ---------------------------------------------------------------------------
 CATEGORIES = {
-    "Shipping":  {"emoji": "🚢", "icon": "fa-ship",          "colour": "#2ee59d"},
-    "Air cargo": {"emoji": "✈️", "icon": "fa-plane",         "colour": "#00e0ff"},
-    "Weather":   {"emoji": "☁️", "icon": "fa-cloud",         "colour": "#9ecbff"},
-    "Military":  {"emoji": "🛡️", "icon": "fa-shield-halved", "colour": "#ff2d55"},
-    "Quakes & volcanoes": {"emoji": "🌋", "icon": "fa-volcano", "colour": "#b388ff"},
+    "Shipping":  {"emoji": "", "icon": "fa-ship",          "colour": "#2ee59d"},
+    "Air cargo": {"emoji": "", "icon": "fa-plane",         "colour": "#00e0ff"},
+    "Weather":   {"emoji": "", "icon": "fa-cloud",         "colour": "#9ecbff"},
+    "Military":  {"emoji": "", "icon": "fa-shield-halved", "colour": "#ff2d55"},
+    "Quakes & volcanoes": {"emoji": "", "icon": "fa-volcano", "colour": "#b388ff"},
 }
 
 # ---------------------------------------------------------------------------

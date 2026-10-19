@@ -78,14 +78,14 @@ def build_events(state):
             drop = start.date().isoformat() if start is not None else None
         add(("chokepoint", s["Chokepoint"]), "Shipping", s["Chokepoint"], cp["lat"], cp["lon"], "fa-ship",
             chokepoint_severity(s),
-            f"🚢 {s['Chokepoint'].upper()} · {s['Status']} · {s['Ships/day (last 7 days)']:.0f} ships/day",
+            f"{s['Chokepoint'].upper()} · {s['Status']} · {s['Ships/day (last 7 days)']:.0f} ships/day",
             CHOKEPOINT_IMPACTS.get(s["Chokepoint"], []), since=drop, rule=f"Disruption at {s['Chokepoint']}")
 
     for name, hub in AIR_HUBS.items():
         status, count = air_hub_status(name, air, air_history)
         add(("hub", name), "Air cargo", name, hub["lat"], hub["lon"], "fa-plane",
             hub_severity(name, air, air_history, state["hub_weather"].get(name)),
-            f"✈️ {name.upper()} · {count if count is not None else '?'} aircraft nearby · {status}",
+            f"{name.upper()} · {count if count is not None else '?'} aircraft nearby · {status}",
             HUB_IMPACTS.get(name, []))
 
     for i, d in enumerate(state["disasters"]):
@@ -95,12 +95,12 @@ def build_events(state):
             name = f"{d['type']}: {region or 'multiple countries'}"
         if d["type"] in WEATHER_ICONS:
             add(("disaster", i), "Weather", name, d["lat"], d["lon"], WEATHER_ICONS[d["type"]],
-                disaster_severity(d), f"☁️ {d['type'].upper()} · {safe(d['name'])} · {d['alert']} alert", impacts,
+                disaster_severity(d), f"{d['type'].upper()} · {safe(d['name'])} · {d['alert']} alert", impacts,
                 since=d["started"], rule=f"{d['type']} in {region}")
         elif d["type"] in ("Earthquake", "Volcano"):
             add(("disaster", i), "Quakes & volcanoes", name, d["lat"], d["lon"],
                 "fa-house-crack" if d["type"] == "Earthquake" else "fa-volcano", disaster_severity(d),
-                f"🌋 {d['type'].upper()} · {safe(d['name'])} · {d['alert']} alert", impacts,
+                f"{d['type'].upper()} · {safe(d['name'])} · {d['alert']} alert", impacts,
                 since=d["started"], rule=f"{d['type']} in {region}")
 
     for kind, places, weather in (("chokepoint", CHOKEPOINTS, state["sea_weather"]),
@@ -110,14 +110,14 @@ def build_events(state):
             if flags:
                 add(("rough", (kind, name)), "Weather", f"Severe weather at {name}", place["lat"] + 2.2, place["lon"],
                     "fa-cloud-rain", rough_severity(weather.get(name)),
-                    f"☁️ SEVERE WEATHER · {name.upper()} · {flags[0][0]} ({flags[0][1]})", [])
+                    f"SEVERE WEATHER · {name.upper()} · {flags[0][0]} ({flags[0][1]})", [])
 
     for name, (level, count, fresh) in state["conflict_info"].items():
         if level != "Quiet":
             zone = CONFLICT_ZONES[name]
             add(("conflict", name), "Military", name, zone["lat"], zone["lon"], "fa-shield-halved",
                 conflict_severity(level),
-                f"🛡️ {name.upper()} · {level} activity · {count} military headlines ({fresh} in 48h)",
+                f"{name.upper()} · {level} activity · {count} military headlines ({fresh} in 48h)",
                 CONFLICT_IMPACTS.get(name, []))
     return events
 

@@ -1,5 +1,5 @@
 # auth_ui.py
-# The log-in / sign-up screen and the 👤 Account tab.
+# The log-in / sign-up screen and the Account tab.
 
 import secrets
 
@@ -56,8 +56,8 @@ def login_gate():
         if not any_users():
             st.info("No accounts yet. **The first account created becomes the admin** (the owner of this Krypton).")
         if st.session_state.get("login_expired"):
-            st.caption(f"⏳ Your saved login has ended (it lasts {STAY_LOGGED_IN_DAYS} days). Please log in again.")
-        log_in_tab, sign_up_tab = st.tabs(["🔑 Log in", "🆕 Create account"])
+            st.caption(f"Your saved login has ended (it lasts {STAY_LOGGED_IN_DAYS} days). Please log in again.")
+        log_in_tab, sign_up_tab = st.tabs(["Log in", "Create account"])
 
         with log_in_tab:
             with st.form("log_in"):
@@ -97,7 +97,7 @@ def login_gate():
                             st.rerun()
                         st.error(error)
         st.caption("Your portfolio and briefings are private to your account.")
-        with st.expander("🔒 Privacy notice"):
+        with st.expander("Privacy notice"):
             st.markdown(PRIVACY_NOTICE)
     st.stop()
 
@@ -116,7 +116,7 @@ to Anthropic's AI to write the answers.
 
 **Payments:** Krypton Pro is paid through Stripe. Krypton never sees or stores your card number.
 
-**Deleting your data:** 👤 Account → Delete my account removes your account and everything in it.
+**Deleting your data:** Account → Delete my account removes your account and everything in it.
 
 **Not financial advice:** Krypton is for learning and research only.
 """
@@ -131,7 +131,7 @@ def visitor_ip():
 
 
 def account_tab(user):
-    st.markdown("### 👤 Your account")
+    st.markdown("### Your account")
     from panels import stat_cards
     stat_cards([
         {"label": "Username", "value": user["username"], "explain": "The name you log in with."},
@@ -146,11 +146,11 @@ def account_tab(user):
     plan_section(user)
 
     st.caption(f"You stay logged in on this device for {STAY_LOGGED_IN_DAYS} days.")
-    if st.button("🚪 Log out"):
+    if st.button("Log out"):
         log_out()
         st.rerun()
 
-    with st.expander("🔑 Change password"):
+    with st.expander("Change password"):
         with st.form("change_password", clear_on_submit=True):
             old = st.text_input("Current password", type="password")
             new = st.text_input("New password", type="password")
@@ -168,7 +168,7 @@ def account_tab(user):
                         st.success("Password changed. Other devices have been logged out.")
 
     if not user["is_admin"]:
-        with st.expander("🗑️ Delete my account"):
+        with st.expander("Delete my account"):
             st.warning("This permanently deletes your account, portfolio and briefings. "
                        "A Krypton Pro subscription is cancelled too.")
             sure = st.checkbox("Yes, I understand this can't be undone")
@@ -183,13 +183,13 @@ def account_tab(user):
         return
 
     # ---------- Admin only ----------
-    st.markdown("### 🛡️ Admin: users")
+    st.markdown("### Admin: users")
     st.caption("AI features need a Krypton Pro subscription. "
                "'Free Pro' gives someone Pro without paying (same monthly AI limit).")
     for other in all_users():
         with st.container(border=True):
             left, middle, right = st.columns([2, 1.2, 1])
-            badge = "· 🛡️ admin" if other["is_admin"] else ("· ⭐ Pro" if is_pro(other) else "")
+            badge = "· admin" if other["is_admin"] else ("· Pro" if is_pro(other) else "")
             left.markdown(f"**{other['username']}** {badge}  \n"
                           f"<small>joined {other['created']} · AI this month ${month_spend(other):.2f}</small>",
                           unsafe_allow_html=True)

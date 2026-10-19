@@ -1,5 +1,5 @@
 # deep_research.py
-# The "🔬 Deep research" button: Claude searches the web about ONE specific event and writes
+# The "Deep research" button: Claude searches the web about ONE specific event and writes
 # a sourced analysis: the real, specific causes, what led to it, and which companies it affects.
 #
 # Needs an Anthropic API key (see the CyprusAI SETUP.md for how a parent can create one).

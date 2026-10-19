@@ -1,11 +1,11 @@
 # panels.py
 # The click-panel: a tidy, tabbed report for whatever icon you clicked on the map.
 #
-#   📊 Overview      bottom line, key numbers, a single-line chart and pie charts, what to watch
-#   ❓ Why           measured causes, what the news says, background, chain of events, confidence
-#   📈 Markets       researched winners/losers grouped by SECTOR, checked against real price moves
-#   📰 News          the latest headlines
-#   🔬 Deep research AI web research on this exact event (needs an API key)
+#   Overview      bottom line, key numbers, a single-line chart and pie charts, what to watch
+#   Why           measured causes, what the news says, background, chain of events, confidence
+#   Markets       researched winners/losers grouped by SECTOR, checked against real price moves
+#   News          the latest headlines
+#   Deep research AI web research on this exact event (needs an API key)
 #
 # Also defines the SEVERITY scale that colours every icon on the map.
 
@@ -108,7 +108,7 @@ def line_chart(series, title, y_label, colour=CYAN, marker=None, marker_label=No
     )
     st.plotly_chart(figure, width="stretch", key=chart_key("line"))
     if explain:
-        st.caption(f"ⓘ {explain}")
+        st.caption(f"{explain}")
 
 
 PIE_COLOURS = ["#ff2a3d", "#ffb000", "#4da3ff", "#3ddc84", "#c77dff", "#ff7aa2", "#00d1c1", "#d4a017", "#9a9aa4"]
@@ -133,7 +133,7 @@ def pie_chart(labels, values, title, height=330, colours=None, note=None):
                          font=dict(family="Inter, sans-serif"))
     st.plotly_chart(figure, width="stretch", key=chart_key("pie"))
     if note:
-        st.caption(f"ⓘ {note}")
+        st.caption(f"{note}")
 
 
 def news_bullets(headlines, limit=10):
@@ -169,7 +169,7 @@ def confidence_note(causes, headlines, measured=True):
     st.markdown(f"- **Measured numbers** (ships, aircraft, weather, prices): reliable, straight from the data sources."
                 if measured else "")
     st.markdown(f"- **Cause:** confidence **{level}**, because {why}. For a fully researched, sourced explanation, "
-                "use the 🔬 Deep research tab.")
+                "use the Deep research tab.")
 
 
 def price_move_since(prices, market, since):
@@ -221,7 +221,7 @@ def render_impacts(impacts, prices, changes, since=None, since_label="this month
         return
 
     # ---------- STOCKS AFFECTED ----------
-    subtitle("📉 Stocks affected")
+    subtitle("Stocks affected")
     rows = []
     for market, direction, why in impacts:
         move = price_move_since(prices, market, since) if since is not None else \
@@ -242,8 +242,8 @@ def render_impacts(impacts, prices, changes, since=None, since_label="this month
                      f"{size}</span>") if size else "—"
         expected = {"▲": "to rise", "▼": "to fall", "◆": "either way"}[direction]
         match = check_direction(direction, move)
-        match_html = {"✔": " <span style='color:#3ddc84'>✔ matched</span>",
-                      "✖": " <span style='color:#ff2a3d'>✖ opposite</span>"}.get(match, "")
+        match_html = {"match": " <span style='color:#3ddc84'>matched</span>",
+                      "opposite": " <span style='color:#ff2a3d'>opposite</span>"}.get(match, "")
         table.append(f"<tr style='border-bottom:1px solid #160a0c'><td style='padding:5px 0'><b>{market}</b></td>"
                      f"<td>{move_html}</td><td>{size_html}</td><td>{direction} {expected}{match_html}</td></tr>")
     table.append("</table>")
@@ -258,7 +258,7 @@ def render_impacts(impacts, prices, changes, since=None, since_label="this month
     for market, direction, why in impacts:
         by_sector.setdefault(SECTOR_OF.get(market, "Other"), []).append((market, direction, why))
     # Stacked (not side by side), so each chart and its key stay readable in the narrow panel
-    labels = [f"{s.split(' ', 1)[-1]} ({len(v)})" for s, v in by_sector.items()]
+    labels = [f"{s} ({len(v)})" for s, v in by_sector.items()]
     pie_chart(labels, [len(v) for v in by_sector.values()], "Which industries it touches",
               note="Each colour is an industry. The number = how many of its stocks are listed above.")
     counts = {"Expected to rise": sum(1 for _, d, _ in impacts if d == "▲"),
@@ -269,12 +269,12 @@ def render_impacts(impacts, prices, changes, since=None, since_label="this month
               note="Green = stocks expected to go up, red = down, grey = could go either way.")
 
     # ---------- WHY EACH ONE IS LINKED (folded away) ----------
-    with st.expander("📚 Why each stock is linked (research notes)"):
+    with st.expander("Why each stock is linked (research notes)"):
         for sector in [s for s in SECTORS if s in by_sector] + [s for s in by_sector if s not in SECTORS]:
             st.markdown(f"**{sector}**")
             st.markdown("\n".join(f"- {d} **{m}**: {why}" for m, d, why in by_sector[sector]))
 
-    subtitle("📈 Price chart")
+    subtitle("Price chart")
     choice = st.selectbox("Show a stock's price over the last 12 months", [m for m, _, _ in impacts],
                           key=f"impact_chart_{since}_{impacts[0][0]}")
     if choice in prices:
@@ -289,11 +289,11 @@ def track_record_note(rule):
     from backtest import load_results, summarise
     results = load_results()
     if not results:
-        st.caption("📊 Track record: not calculated yet (see the 📊 Track record tab).")
+        st.caption("Track record: not calculated yet (see the Track record tab).")
         return
     _, by_rule, _ = summarise(results)
     if by_rule is None or rule not in by_rule.index:
-        st.caption("ℹ️ There are no past events like this one to check these arrows against.")
+        st.caption("There are no past events like this one to check these arrows against.")
         return
     row = by_rule.loc[rule]
     n, hit, base = int(row["predictions"]), row["hit_rate"], row["base_rate"]
@@ -301,13 +301,13 @@ def track_record_note(rule):
     luck = 1.96 * (base * (1 - base) / n) ** 0.5 if n else 1
     right, coin = round(hit * 100), round(base * 100)
     if past_events < 5:
-        st.info(f"ℹ️ Only {past_events} past event{'s' if past_events != 1 else ''} like this, too few to know "
+        st.info(f"Only {past_events} past event{'s' if past_events != 1 else ''} like this, too few to know "
                 "if these arrows work.")
     elif hit - base > luck:
-        st.success(f"✅ In past events like this, these arrows were right **{right} times out of 100** "
+        st.success(f"In past events like this, these arrows were right **{right} times out of 100** "
                    f"(guessing: {coin}). Better than guessing, but still not a sure thing.")
     else:
-        st.warning(f"⚠️ **Heads-up:** in past events like this, these arrows were right **{right} times out of 100**. "
+        st.warning(f"**Heads-up:** in past events like this, these arrows were right **{right} times out of 100**. "
                    f"Just guessing gets about {coin}. Don't use them to predict prices.")
 
 
@@ -320,11 +320,11 @@ def render_deep_research(event_key, description):
     allowed, reason = ai_access(user) if user else (False, "locked")
     if not allowed:
         locked_message(user, reason, f"research_{event_key}",
-                       "🔄 Refresh research" if saved else "🔬 Run deep research")
+                       "Refresh research" if saved else "Run deep research")
     elif not api_key_available():
         st.caption("AI research is unavailable right now. Please try again later.")
     else:
-        label = "🔄 Refresh research" if saved else "🔬 Run deep research"
+        label = "Refresh research" if saved else "Run deep research"
         if st.button(label, key=f"research_{event_key}"):
             with st.spinner("Researching (searching the web, usually 30–90 seconds)..."):
                 try:
@@ -341,12 +341,12 @@ def render_deep_research(event_key, description):
 
 
 # ===========================================================================
-# 🚢 SHIPPING CHOKEPOINT
+# SHIPPING CHOKEPOINT
 # ===========================================================================
 def render_chokepoint(name, s, traffic, prices, changes, headlines, disasters, weather):
     info = CHOKEPOINTS[name]
     severity = chokepoint_severity(s)
-    header(name, "🚢 Shipping chokepoint", severity)
+    header(name, "Shipping chokepoint", severity)
     sections = dict(explain_chokepoint(name, s, traffic, prices, changes, headlines, disasters))
     daily = traffic[traffic["chokepoint"] == name].set_index("date").sort_index()
     smooth = daily["ships"].rolling(7).mean().dropna()
@@ -357,7 +357,7 @@ def render_chokepoint(name, s, traffic, prices, changes, headlines, disasters, w
     cause = causes[0][0].lower() if causes else "no single clear cause in the news"
     routes = [r for r, r_info in SEA_ROUTES.items() if name in r_info["chokepoints"]]
 
-    tabs = st.tabs(["📊 Overview", "❓ Why", "📈 Markets", "📰 News", "🔬 Deep research"])
+    tabs = st.tabs(["Overview", "Why", "Markets", "News", "Deep research"])
 
     with tabs[0]:
         if s["Status"] == "Disrupted":
@@ -371,7 +371,7 @@ def render_chokepoint(name, s, traffic, prices, changes, headlines, disasters, w
             text = "ships are passing normally."
         bottom_line(f"{name}: {text}", severity)
 
-        subtitle("🚢 Ship traffic in numbers")
+        subtitle("Ship traffic in numbers")
         year_change = s["Change vs a year ago (%)"]
         stat_cards([
             {"label": "Ships per day · this week", "value": f"{s['Ships/day (last 7 days)']:.0f}",
@@ -406,10 +406,10 @@ def render_chokepoint(name, s, traffic, prices, changes, headlines, disasters, w
                           "Ship types: a year ago",
                           note="The same mix a year ago. Compare the two to see which kind of ship is staying away.")
 
-        subtitle("🌦️ Weather & sea right now")
+        subtitle("Weather & sea right now")
         st.markdown(describe_weather(weather))
 
-        subtitle("👀 What to watch next")
+        subtitle("What to watch next")
         watch = []
         if s["Status"] in ("Disrupted", "Below normal"):
             watch.append(f"Whether ships/day climbs back toward the year-ago level of {s['Ships/day (a year ago)'] or 0:.0f}.")
@@ -421,26 +421,26 @@ def render_chokepoint(name, s, traffic, prices, changes, headlines, disasters, w
         bullets(watch)
 
     with tabs[1]:
-        subtitle("📏 Measured: what the data shows")
-        st.markdown(sections.get("📊 What's happening", ""))
-        subtitle("📰 What the news says")
+        subtitle("Measured: what the data shows")
+        st.markdown(sections.get("What's happening", ""))
+        subtitle("What the news says")
         causes = news_themes(headlines)
-        subtitle("🔗 Chain of events")
+        subtitle("Chain of events")
         if s["Status"] in ("Disrupted", "Below normal"):
             chain = [f"**Trigger:** {cause}" + (f", with traffic falling from {drop:%d %b %Y}" if drop is not None else "") + ".",
                      f"**Ships react:** daily transits fall to {s['Ships/day (last 7 days)']:.0f}/day "
                      f"(from {s['Ships/day (a year ago)'] or s['Ships/day (last 3 months)']:.0f} a year ago).",
                      "**Trade reroutes:** cargo waits, takes longer routes, or stops.",
                      "**Costs rise:** longer voyages, higher insurance and fewer available ships push freight rates up.",
-                     "**Markets react:** see the 📈 Markets tab for the specific winners and losers."]
+                     "**Markets react:** see the Markets tab for the specific winners and losers."]
             st.markdown("\n".join(f"{i}. {step}" for i, step in enumerate(chain, 1)))
         else:
             st.markdown("No disruption to explain: traffic is close to normal.")
-        subtitle("🌍 Why this place matters")
+        subtitle("Why this place matters")
         st.markdown(info["why"])
         if routes:
             st.markdown("\n".join(f"- **{r}:** {SEA_ROUTES[r]['carries']}" for r in routes))
-        subtitle("🎯 How sure is this?")
+        subtitle("How sure is this?")
         confidence_note(causes, headlines)
 
     with tabs[2]:
@@ -458,13 +458,13 @@ def render_chokepoint(name, s, traffic, prices, changes, headlines, disasters, w
 
 
 # ===========================================================================
-# ✈️ AIR CARGO HUB
+# AIR CARGO HUB
 # ===========================================================================
 def render_hub(name, air, air_history, weather, headlines, prices, changes, conflict_levels):
     hub = AIR_HUBS[name]
     severity = hub_severity(name, air, air_history, weather)
     status, count = air_hub_status(name, air, air_history)
-    header(name, "✈️ Air cargo hub", severity)
+    header(name, "Air cargo hub", severity)
     flags = weather_flags(weather)
     from explain import distance_km
     nearby = [c for c, z in CONFLICT_ZONES.items()
@@ -472,7 +472,7 @@ def render_hub(name, air, air_history, weather, headlines, prices, changes, conf
               and conflict_levels.get(c) in ("High", "Elevated")]
     causes = classify_causes(headlines)
 
-    tabs = st.tabs(["📊 Overview", "❓ Why", "📈 Markets", "📰 News", "🔬 Deep research"])
+    tabs = st.tabs(["Overview", "Why", "Markets", "News", "Deep research"])
     with tabs[0]:
         if status == "No coverage":
             text = "live tracking can't see this airport (receiver gaps), so judge it from news and weather."
@@ -488,7 +488,7 @@ def render_hub(name, air, air_history, weather, headlines, prices, changes, conf
 
         past = air_history.get(name)
         ground = (air or {}).get("counts", {}).get(name, {}).get("on_ground")
-        subtitle("✈️ Air traffic in numbers")
+        subtitle("Air traffic in numbers")
         stat_cards([
             {"label": "Aircraft nearby · right now", "value": count if count is not None else "n/a",
              "explain": f"Planes tracked within 150 km of {name} in the latest live check."},
@@ -505,9 +505,9 @@ def render_hub(name, air, air_history, weather, headlines, prices, changes, conf
                    height=210, explain="Each point is one saved live count of planes near the airport (a new one about "
                                        "every 15 minutes). Sudden dips can mean a closure, a storm or quiet night hours.")
 
-        subtitle("🌍 What this hub is")
+        subtitle("What this hub is")
         st.markdown(hub["role"])
-        subtitle("👀 What to watch next")
+        subtitle("What to watch next")
         watch = ["Whether aircraft counts stay near their usual level."]
         if flags:
             watch.append("When the bad weather clears (check the weather in the Why tab).")
@@ -516,15 +516,15 @@ def render_hub(name, air, air_history, weather, headlines, prices, changes, conf
         bullets(watch)
 
     with tabs[1]:
-        subtitle("🌦️ Weather right now")
+        subtitle("Weather right now")
         st.markdown(describe_weather(weather))
-        subtitle("🛡️ Nearby conflicts")
+        subtitle("Nearby conflicts")
         bullets([f"**{c}**: {conflict_levels[c].lower()} activity, within 1,500 km. Airlines may reroute around "
                  "closed airspace, adding flight time and fuel cost." for c in nearby] or
                 ["No active conflicts within 1,500 km."])
-        subtitle("📰 What the news says")
+        subtitle("What the news says")
         causes = news_themes(headlines)
-        subtitle("🎯 How sure is this?")
+        subtitle("How sure is this?")
         confidence_note(causes, headlines)
         st.caption("Aircraft counts include passenger planes; live data can't always separate cargo flights.")
 
@@ -543,16 +543,16 @@ def render_hub(name, air, air_history, weather, headlines, prices, changes, conf
 
 
 # ===========================================================================
-# 🛡️ CONFLICT ZONE
+# CONFLICT ZONE
 # ===========================================================================
 def render_conflict(name, headlines, air, air_history, statuses, prices, changes):
     zone = CONFLICT_ZONES[name]
     level, military, fresh = military_intensity(headlines)
     severity = conflict_severity(level)
-    header(name, "🛡️ Military activity", severity)
+    header(name, "Military activity", severity)
     causes = classify_causes(headlines)
 
-    tabs = st.tabs(["📊 Overview", "❓ Why", "📈 Markets", "📰 News", "🔬 Deep research"])
+    tabs = st.tabs(["Overview", "Why", "Markets", "News", "Deep research"])
     with tabs[0]:
         text = {"High": "very active right now, with frequent fresh reports of military action.",
                 "Elevated": "ongoing military activity in the news, below peak intensity.",
@@ -560,7 +560,7 @@ def render_conflict(name, headlines, air, air_history, statuses, prices, changes
         bottom_line(f"{name}: {text}", severity)
 
         count = (air or {}).get("counts", {}).get(name, {}).get("airborne")
-        subtitle("🛡️ Activity in numbers")
+        subtitle("Activity in numbers")
         stat_cards([
             {"label": "Activity level", "value": level,
              "explain": "Krypton's rating from recent news: Quiet, Low, Elevated or High."},
@@ -582,7 +582,7 @@ def render_conflict(name, headlines, air, air_history, statuses, prices, changes
         line_chart(get_air_series(name), "Aircraft flying over the area (each saved check)", "Aircraft",
                    height=200, explain="Each point is one saved live count of planes over the area.")
 
-        subtitle("👀 What to watch next")
+        subtitle("What to watch next")
         bullets([
             "Whether the number of fresh (48-hour) military headlines rises or falls.",
             "Aircraft over the area: a sharp drop can mean closed airspace or a new escalation.",
@@ -590,28 +590,28 @@ def render_conflict(name, headlines, air, air_history, statuses, prices, changes
         ])
 
     with tabs[1]:
-        subtitle("📜 Background: what led to this")
+        subtitle("Background: what led to this")
         st.markdown(zone["background"])
-        subtitle("🗞️ Latest developments (newest first)")
+        subtitle("Latest developments (newest first)")
         ordered = sorted([h for h in headlines if h.get("published")], key=lambda h: h["published"], reverse=True)
         news_bullets(ordered, 6)
-        subtitle("📰 Themes in the news")
+        subtitle("Themes in the news")
         causes = news_themes(headlines)
-        subtitle("🌍 What's nearby")
+        subtitle("What's nearby")
         from explain import distance_km
         near = []
         for s in statuses:
             cp = CHOKEPOINTS[s["Chokepoint"]]
             km = distance_km(zone["lat"], zone["lon"], cp["lat"], cp["lon"])
             if km < 2000:
-                near.append(f"🚢 **{s['Chokepoint']}**, {km:,.0f} km away: "
+                near.append(f"**{s['Chokepoint']}**, {km:,.0f} km away: "
                             f"{STATUS_STYLE[s['Status']]['emoji']} {s['Status'].lower()}")
         for hub_name, hub in AIR_HUBS.items():
             km = distance_km(zone["lat"], zone["lon"], hub["lat"], hub["lon"])
             if km < 1500:
-                near.append(f"✈️ **{hub_name}** cargo hub, {km:,.0f} km away")
+                near.append(f"**{hub_name}** cargo hub, {km:,.0f} km away")
         bullets(near or ["No major chokepoints or cargo hubs nearby."])
-        subtitle("🎯 How sure is this?")
+        subtitle("How sure is this?")
         confidence_note(causes, headlines)
 
     with tabs[2]:
@@ -625,7 +625,7 @@ def render_conflict(name, headlines, air, air_history, statuses, prices, changes
 
 
 # ===========================================================================
-# ☁️🌋 DISASTERS (GDACS)
+# DISASTERS (GDACS)
 # ===========================================================================
 HAZARD_BASICS = {
     "Cyclone": "Tropical cyclones (hurricanes/typhoons) draw energy from warm ocean water.",
@@ -645,7 +645,7 @@ def cached_causes(d):
 
 def render_disaster(d, prices, changes, headlines):
     severity = disaster_severity(d)
-    icon = "🌋" if d["type"] in ("Earthquake", "Volcano") else "☁️"
+    icon = "" if d["type"] in ("Earthquake", "Volcano") else ""
     region, impacts, specific = disaster_impacts(d)
     countries = {c.strip() for c in d["country"].split(",") if c.strip()}
     title = d["name"] if len(d["name"]) <= 60 else f"{d['type']}: {region or 'multiple countries'} ({len(countries)} countries)"
@@ -653,12 +653,12 @@ def render_disaster(d, prices, changes, headlines):
     with st.spinner("Checking 35 years of climate records..."):
         causes_measured, chart = cached_causes(d)
 
-    tabs = st.tabs(["📊 Overview", "❓ Why", "📈 Markets", "📰 News", "🔬 Deep research"])
+    tabs = st.tabs(["Overview", "Why", "Markets", "News", "Deep research"])
     with tabs[0]:
         effect = ("expect real damage and disruption for days or weeks" if d["alert"] == "Red"
                   else "local disruption likely; global markets react only if it hits key ports, crops, mines or factories")
         bottom_line(f"{d['type']} in {region or d['country'][:60]}: {effect}.", severity)
-        subtitle("📋 Event facts")
+        subtitle("Event facts")
         stat_cards([
             {"label": "Alert level", "value": d["alert"],
              "explain": "From GDACS, the UN-backed disaster alert system: Green = minor, Orange = serious, Red = severe."},
@@ -674,7 +674,7 @@ def render_disaster(d, prices, changes, headlines):
                        colour="#3fa9ff", bars=True,
                        explain="Each bar is one month's rain where the event is centred, compared with the 35-year "
                                "average. 100% = normal; below = drier than normal; above = wetter.")
-        subtitle("👀 What to watch next")
+        subtitle("What to watch next")
         watch = {"Cyclone": ["The storm's forecast track: which coasts, ports and cities it heads toward.",
                              "Wind speed: weakening over cooler water or land, or strengthening over warm water."],
                  "Drought": ["Rainfall over the coming weeks vs normal.", "River and reservoir levels; harvest estimates."],
@@ -685,7 +685,7 @@ def render_disaster(d, prices, changes, headlines):
         bullets(watch.get(d["type"], []))
 
     with tabs[1]:
-        subtitle("📏 Measured causes (from real data)")
+        subtitle("Measured causes (from real data)")
         if causes_measured:
             st.markdown("\n".join(causes_measured))
         if d["type"] in ("Earthquake", "Volcano"):
@@ -694,21 +694,21 @@ def render_disaster(d, prices, changes, headlines):
             if d["severity"]:
                 st.markdown(f"**Measured strength:** {d['severity']}. Shallow quakes (under ~70 km deep) shake the "
                             "surface much harder than deep ones of the same magnitude.")
-        subtitle("📰 What the news says")
+        subtitle("What the news says")
         causes = news_themes(headlines)
-        subtitle("📚 How this kind of event works (short)")
+        subtitle("How this kind of event works (short)")
         st.markdown(HAZARD_BASICS.get(d["type"], ""))
-        subtitle("🎯 How sure is this?")
+        subtitle("How sure is this?")
         st.markdown("- **Measured causes** come from climate records, live sea temperature or plate maps: reliable "
                     "for the centre point of the event.\n- Human factors (water use, land management, building quality) "
-                    "aren't in free live data; use 🔬 Deep research for those.")
+                    "aren't in free live data; use Deep research for those.")
 
     with tabs[2]:
         if specific:
             track_record_note(f"{d['type']} in {region}")
         note = (f"Researched effects for a **{d['type'].lower()} in {region}**." if specific else
                 f"No region-specific research for a {d['type'].lower()} in {region or 'this area'} yet: showing "
-                "**general** effects only. Use 🔬 Deep research for this exact event.")
+                "**general** effects only. Use Deep research for this exact event.")
         render_impacts(impacts, prices, changes, since=d["started"],
                        since_label=f"since the event began ({d['started']})", note=note)
     with tabs[3]:
@@ -722,17 +722,17 @@ def render_disaster(d, prices, changes, headlines):
 
 
 # ===========================================================================
-# ☁️ SEVERE WEATHER RIGHT NOW (at a chokepoint or hub)
+# SEVERE WEATHER RIGHT NOW (at a chokepoint or hub)
 # ===========================================================================
 def render_rough(place_kind, place, weather, prices, changes):
     severity = rough_severity(weather)
-    header(f"Severe weather: {place}", "☁️ Live weather", severity)
+    header(f"Severe weather: {place}", "Live weather", severity)
     flags = weather_flags(weather)
-    tabs = st.tabs(["📊 Overview", "❓ Why", "📈 Markets"])
+    tabs = st.tabs(["Overview", "Why", "Markets"])
     with tabs[0]:
         bottom_line(f"{', '.join(f[0].lower() for f in flags)} at {place} right now. A short-term risk: "
                     "usually clears within hours to a couple of days.", severity)
-        subtitle("🌬️ Conditions in numbers")
+        subtitle("Conditions in numbers")
         stat_cards([
             {"label": "Wind gusts", "value": f"{weather['gusts']:.0f} km/h" if weather.get("gusts") is not None else "n/a",
              "explain": "The strongest bursts of wind right now. 60+ km/h is strong; 90+ km/h is storm-force."},
@@ -747,7 +747,7 @@ def render_rough(place_kind, place, weather, prices, changes):
         st.markdown("Ships may slow, anchor or be held by port authorities." if place_kind == "chokepoint" else
                     "Flights may be delayed, diverted or cancelled; a hub backlog can delay parcels for days.")
     with tabs[1]:
-        subtitle("📏 Measured")
+        subtitle("Measured")
         bullets([f"**{name}**: {detail}" for name, detail in flags])
         st.markdown("Thresholds used: gusts ≥ 60 km/h (strong) / ≥ 90 km/h (storm-force); waves ≥ 3 m (rough) / "
                     "≥ 5 m (very rough); visibility < 1 km (fog). Above these, ports and airports often slow operations.")

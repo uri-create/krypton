@@ -1,8 +1,8 @@
 # clusters.py
-# 🧬 Market TEAMS: which markets move together?
+# Market CLUSTERS: which markets move together?
 #
 # For every pair of markets Krypton follows, we compare their daily ups and downs over the last year.
-# Markets that keep moving the same way are put in the same TEAM (e.g. oil companies + the oil price).
+# Markets that keep moving the same way are put in the same CLUSTER (e.g. oil companies + the oil price).
 #
 # How it works (simply): we measure how alike each pair's daily moves were (their "correlation":
 # +1 = always move the same way, 0 = unrelated). Then the two most alike groups are joined, again
@@ -16,18 +16,10 @@
 import numpy as np
 import pandas as pd
 
-from markets import SECTOR_OF
+from markets import FULL_NAME, SECTOR_OF
 
 TOGETHER = 0.5      # join groups only while their markets' average correlation is at least this
 MIN_DAYS = 120      # a market needs this many days of prices to be included
-
-# Friendly team names, from the sector most of the team comes from
-TEAM_NAMES = {"Energy": "Oil & energy", "Shipping": "Shipping", "Airlines & logistics": "Travel & freight",
-              "Autos": "Car makers", "Defence & aerospace": "Defence", "Insurance & rebuilding": "Insurers",
-              "Agriculture & food": "Farm & food", "Metals & mining": "Metals & mining",
-              "Semiconductors & tech": "Chips & tech", "Countries & indexes": "World stock markets",
-              "Fear & safe havens": "Safe havens", "Utilities": "Power & utilities"}
-
 
 def daily_moves(prices):
     returns = prices.pct_change(fill_method=None)
@@ -63,13 +55,8 @@ def group(corr, threshold=TOGETHER):
     return sorted([[names[i] for i in g] for g in groups], key=len, reverse=True)
 
 
-def team_name(sector):
-    plain = sector.split(" ", 1)[-1]
-    return f"{TEAM_NAMES.get(plain, plain)} team"
-
-
 def describe(members, corr, moves, changes):
-    """Facts about one team, in plain numbers."""
+    """Facts about one cluster, in plain numbers."""
     sub = corr.loc[members, members]
     anchor = sub.mean().idxmax()  # the most typical member: most alike to all the others
     pairs = [same_direction(moves, a, b) for i, a in enumerate(members) for b in members[i + 1:]]
@@ -79,28 +66,29 @@ def describe(members, corr, moves, changes):
     main = sectors.index[0]
     return {"members": sorted(members, key=lambda m: -sub[m].mean()), "anchor": anchor,
             "together": float(np.mean(pairs)) if pairs else None, "main_sector": main,
-            "name": team_name(main), "icon": main.split(" ", 1)[0], "mixed": len(sectors) > 1,
+            "name": f"{main} cluster", "mixed": len(sectors) > 1,
             "sectors": sectors.to_dict(), "month": float(np.mean(month)) if month else None}
 
 
 def build(prices, changes):
-    """Everything the Teams page needs."""
+    """Everything the Clusters page needs."""
     moves = daily_moves(prices)
     corr = moves.corr(min_periods=MIN_DAYS)
     groups = group(corr)
     described = [describe(g, corr, moves, changes) for g in groups if len(g) > 1]
-    teams = [t for t in described if len(t["members"]) >= 3]
+    clusters = [t for t in described if len(t["members"]) >= 3]
     pairs = [t for t in described if len(t["members"]) == 2]
-    # Two teams from the same sector get told apart by their leading member
+    # Two clusters from the same sector are told apart by their leading member
     seen = {}
-    for t in teams:
+    for t in clusters:
         seen[t["name"]] = seen.get(t["name"], 0) + 1
-    for t in teams:
+    for t in clusters:
         if seen[t["name"]] > 1:
-            t["name"] = f"{t['name']} · {t['anchor']}"
+            t["name"] = f"{t['name']}: {FULL_NAME.get(t['anchor'], t['anchor'])}"
     loners = [g[0] for g in groups if len(g) == 1]
-    team_of = {m: t for t in teams + pairs for m in t["members"]}
-    return {"moves": moves, "corr": corr, "teams": teams, "pairs": pairs, "loners": loners, "team_of": team_of}
+    cluster_of = {m: t for t in clusters + pairs for m in t["members"]}
+    return {"moves": moves, "corr": corr, "clusters": clusters, "pairs": pairs, "loners": loners,
+            "cluster_of": cluster_of}
 
 
 def buddies(data, market, limit=5):

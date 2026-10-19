@@ -10,12 +10,12 @@ LOW_BELOW = -10
 BUSY_ABOVE = 25
 
 STATUS_STYLE = {
-    "Disrupted":      {"emoji": "🔴", "colour": "#ff3b3b",
+    "Disrupted":      {"emoji": "", "colour": "#ff3b3b",
                        "meaning": "25%+ fewer ships than 3 months or a year ago"},
-    "Below normal":   {"emoji": "🟠", "colour": "#ffb000",
+    "Below normal":   {"emoji": "", "colour": "#ffb000",
                        "meaning": "10–25% fewer ships than 3 months or a year ago"},
-    "Normal":         {"emoji": "🟢", "colour": "#2ee59d", "meaning": "traffic close to usual levels"},
-    "Unusually busy": {"emoji": "🔵", "colour": "#3fa9ff",
+    "Normal":         {"emoji": "", "colour": "#2ee59d", "meaning": "traffic close to usual levels"},
+    "Unusually busy": {"emoji": "", "colour": "#3fa9ff",
                        "meaning": "25%+ more ships than the last 3 months (often rerouting)"},
 }
 
@@ -126,30 +126,30 @@ def build_briefing(statuses, changes, disasters):
     cape, bab = by_name.get("Cape of Good Hope"), by_name.get("Bab el-Mandeb Strait")
     if cape and bab and cape["Change vs 3 months (%)"] > 10 and bab["Change vs 3 months (%)"] < -10:
         lines.append(
-            "🔄 **Ships appear to be rerouting around Africa.** Traffic at the Cape of Good Hope is "
+            "**Ships appear to be rerouting around Africa.** Traffic at the Cape of Good Hope is "
             f"{cape['Change vs 3 months (%)']:+d}% while the Red Sea entrance is {bab['Change vs 3 months (%)']:+d}%. "
             "The trip around Africa adds roughly 10–14 days, which tends to raise shipping costs."
         )
 
     busy = [s for s in statuses if s["Status"] == "Unusually busy" and s["Chokepoint"] != "Cape of Good Hope"]
     for s in busy:
-        lines.append(f"🔵 **{s['Chokepoint']} is unusually busy** ({s['Change vs 3 months (%)']:+d}% vs 3 months). "
+        lines.append(f"**{s['Chokepoint']} is unusually busy** ({s['Change vs 3 months (%)']:+d}% vs 3 months). "
                      "This can mean ships are diverting here from another route.")
 
     if not problems and not busy:
-        lines.append("🟢 **All watched shipping chokepoints are running normally.**")
+        lines.append("**All watched shipping chokepoints are running normally.**")
 
     # 3. Biggest market moves this month
     moves = [(m, c["1 month (%)"]) for m, c in changes.items() if c["1 month (%)"] is not None]
     moves.sort(key=lambda m: abs(m[1]), reverse=True)
     if moves:
         top = ", ".join(f"**{m}** {describe_move(v)}" for m, v in moves[:3])
-        lines.append(f"📈 **Biggest market moves this month:** {top}.")
+        lines.append(f"**Biggest market moves this month:** {top}.")
 
     # 4. Serious disasters
     red = [d for d in disasters if d["alert"] == "Red"]
     if red:
         names = "; ".join(f"{d['name']} ({d['country'][:60]})" for d in red[:3])
-        lines.append(f"🌪️ **Red disaster alerts:** {names}.")
+        lines.append(f"**Red disaster alerts:** {names}.")
 
     return lines

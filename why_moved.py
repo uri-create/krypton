@@ -1,5 +1,5 @@
 # why_moved.py
-# "🧠 Why did it move?" for each stock in your portfolio.
+# "Why did it move?" for each stock in your portfolio.
 #
 # The price move itself is MEASURED from real prices. The REASON comes from the AI searching the
 # web for that stock's actual news from the last week, written in plain English with sources.

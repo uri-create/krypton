@@ -639,9 +639,9 @@ HUB_IMPACTS = {
 
 
 def check_direction(expected, move):
-    """Did the market move the way the research expects? Returns ✔, ✖ or ·"""
+    """Did the market move the way the research expects? Returns match, opposite or a dot (no call)."""
     if move is None or expected == MIXED or abs(move) < 1:
         return "·"
     if (expected == UP and move > 0) or (expected == DOWN and move < 0):
-        return "✔"
-    return "✖"
+        return "match"
+    return "opposite"

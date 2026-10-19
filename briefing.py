@@ -1,6 +1,6 @@
 # briefing.py
 # The DAILY BRIEFING: a 2-minute "what's going on in the world and my portfolio" report.
-# Written on demand in the app (📰 Daily briefing tab) and saved in each user's
+# Written on demand in the app (Daily briefing tab) and saved in each user's
 # private storage. If an API key is set up, the AI can polish it into an analyst-style note.
 
 import datetime as dt
@@ -35,7 +35,7 @@ def build_briefing_text(state, store):
     events = sorted(state["events"], key=lambda e: -rank(e["severity"]))
     critical = [e for e in events if e["severity"] == "Critical"]
     high = [e for e in events if e["severity"] == "High"]
-    lines = [f"# 🌐 Krypton daily briefing · {now:%A %d %B %Y}", ""]
+    lines = [f"# Krypton daily briefing · {now:%A %d %B %Y}", ""]
 
     # --- Headline numbers
     lines += ["## At a glance",
@@ -47,7 +47,7 @@ def build_briefing_text(state, store):
     from compass import summary_line
     weather = summary_line(state.get("compass"))
     if weather:
-        lines[lines.index("## At a glance") + 1:lines.index("## At a glance") + 1] = [f"- 🧭 {weather}"]
+        lines[lines.index("## At a glance") + 1:lines.index("## At a glance") + 1] = [f"- {weather}"]
 
     # --- The most serious situations
     lines.append("## The most serious situations")
@@ -70,7 +70,7 @@ def build_briefing_text(state, store):
             else:
                 lines.append(f"- **{ticker}**: no exposure to today's serious events.")
     else:
-        lines.append("- No portfolio entered yet (add one in the 💼 My portfolio tab).")
+        lines.append("- No portfolio entered yet (add one in the My portfolio tab).")
     lines.append("")
 
     # --- Markets

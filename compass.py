@@ -1,5 +1,5 @@
 # compass.py
-# 🧭 The Market Compass: is the US stock market (S&P 500) BULLISH, NEUTRAL or BEARISH right now?
+# The Market Compass: is the US stock market (S&P 500) BULLISH, NEUTRAL or BEARISH right now?
 #
 # It is NOT advice and NOT a promise. It combines six well-known, measurable market signals into
 # one score from -100 (bearish) to +100 (bullish), then looks up, on ~18 years of real history,
@@ -38,22 +38,22 @@ HORIZON = 21          # trading days ahead we check (about one month)
 LEAN = 25             # above +25 = "Bullish", below -25 = "Bearish", in between = "Neutral"
 
 SIGNALS = {
-    "Trend": {"icon": "📈", "what": "Is the S&P 500 above its 200-day average price?",
+    "Trend": {"icon": "", "what": "Is the S&P 500 above its 200-day average price?",
               "up": "The market is above its long-term average: the big trend is up.",
               "down": "The market is below its long-term average: the big trend is down."},
-    "Momentum": {"icon": "🚀", "what": "How much the S&P 500 moved over the last 3 months.",
+    "Momentum": {"icon": "", "what": "How much the S&P 500 moved over the last 3 months.",
                  "up": "Prices have been rising over the last 3 months.",
                  "down": "Prices have been falling over the last 3 months."},
-    "Breadth": {"icon": "🌐", "what": "How many of the 9 big sector funds are above their 50-day average.",
+    "Breadth": {"icon": "", "what": "How many of the 9 big sector funds are above their 50-day average.",
                 "up": "Most sectors are rising together: a broad, sturdy move.",
                 "down": "Most sectors are below their recent average: weakness is widespread."},
-    "Fear": {"icon": "😨", "what": "Short-term fear (VIX) compared with 3-month fear (VIX 3-month).",
+    "Fear": {"icon": "", "what": "Short-term fear (VIX) compared with 3-month fear (VIX 3-month).",
              "up": "Investors are calm: short-term fear is lower than longer-term fear.",
              "down": "Investors are nervous: short-term fear is close to or above longer-term fear."},
-    "Credit": {"icon": "💳", "what": "Risky company bonds vs safe government bonds, compared with 50 days ago.",
+    "Credit": {"icon": "", "what": "Risky company bonds vs safe government bonds, compared with 50 days ago.",
                "up": "Investors are happy to lend to risky companies: a sign of confidence.",
                "down": "Investors are moving to safe bonds: a sign of worry."},
-    "Growth": {"icon": "🏗️", "what": "Copper (used to build things) vs gold (a safe haven).",
+    "Growth": {"icon": "", "what": "Copper (used to build things) vs gold (a safe haven).",
                "up": "Copper is beating gold: the world economy looks stronger.",
                "down": "Gold is beating copper: investors are worried about the economy."},
 }
@@ -89,11 +89,11 @@ def signals(history):
 
 
 READINGS = {
-    "Bullish": {"icon": "🐂", "colour": "#3ddc84", "range": "+25 to +100",
+    "Bullish": {"icon": "", "colour": "#3ddc84", "range": "+25 to +100",
                 "meaning": "Most signals are positive: prices are rising and investors are confident."},
-    "Neutral": {"icon": "⚖️", "colour": "#ffb000", "range": "−25 to +25",
+    "Neutral": {"icon": "", "colour": "#ffb000", "range": "−25 to +25",
                "meaning": "Signals disagree: expect a bumpier ride than usual, without a clear direction."},
-    "Bearish": {"icon": "🐻", "colour": "#ff2a3d", "range": "−100 to −25",
+    "Bearish": {"icon": "", "colour": "#ff2a3d", "range": "−100 to −25",
                "meaning": "Most signals are negative: the market is falling or nervous, and big swings are likely."},
 }
 
@@ -160,7 +160,7 @@ def summary_line(compass):
         return None
     name = reading(compass["today"]["Score"])
     odds, normal = compass["test"]["by_reading"][name], compass["test"]["all"]
-    return (f"Market reading (S&P 500): {READINGS[name]['icon']} {name} (score {compass['today']['Score']:+.0f} of ±100). "
+    return (f"Market reading (S&P 500): {name} (score {compass['today']['Score']:+.0f} of ±100). "
             f"After readings like this, the market was higher a month later {odds['up']:.0f}% of the time "
             f"(normal {normal['up']:.0f}%), and fell 10%+ during the month {odds['dip10']:.0f}% of the time "
             f"(normal {normal['dip10']:.0f}%). Good at warning about rough months, not at calling up or down.")

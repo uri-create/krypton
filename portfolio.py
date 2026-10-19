@@ -3,17 +3,17 @@
 #
 # Everything shown is either MEASURED from real data or clearly labelled as a research note:
 #
-#   ✅ MEASURED (real data, nothing estimated)
+#   MEASURED (real data, nothing estimated)
 #      - the holding's actual price move since the event began
 #      - how the holding actually moved after past events of the same kind (from the backtest)
 #      - how closely the holding has actually moved with the markets the event hits
 #        (correlation of daily price moves over the last 12 months)
-#   📚 RESEARCH NOTE
+#   RESEARCH NOTE
 #      - a factual background line explaining the connection (e.g. "iPhone chips are made by TSMC")
 #
 # Two kinds of link:
-#   🎯 NAMED     the holding itself appears in the event's researched effects
-#   📈 MEASURED  the holding isn't named, but its price has actually moved closely together
+#   NAMED     the holding itself appears in the event's researched effects
+#   MEASURED  the holding isn't named, but its price has actually moved closely together
 #                (correlation ≥ 0.4, after removing general stock-market moves) with a market the event hits
 # Each user's portfolio is saved in their own private storage (see storage.py).
 

@@ -134,7 +134,7 @@ def explain_chokepoint(name, status, traffic, prices, changes, headlines, disast
     if status["Status"] in ("Disrupted", "Below normal"):
         drop_start = find_drop_start(smooth, normal_level)
         if drop_start is not None:
-            text += (f"\n\n📉 Traffic started falling sharply around **{drop_start:%d %B %Y}** "
+            text += (f"\n\nTraffic started falling sharply around **{drop_start:%d %B %Y}** "
                      "and has stayed low since.")
 
     # Which kinds of ships disappeared? That's a clue to the cause.
@@ -156,7 +156,7 @@ def explain_chokepoint(name, status, traffic, prices, changes, headlines, disast
             elif moves.get("bulk carriers", 0) < -30 and moves.get("tankers", 0) > -10:
                 text += ("\n\n*Mainly bulk carriers (grain, coal, ore) have fallen. That points to crop, "
                          "commodity or export problems.*")
-    sections.append(("📊 What's happening", text))
+    sections.append(("What's happening", text))
 
     # --- Why (likely cause) ---
     causes = classify_causes(headlines)
@@ -182,10 +182,10 @@ def explain_chokepoint(name, status, traffic, prices, changes, headlines, disast
     if nearby and status["Status"] != "Normal":
         text += "\n\n**Nearby disaster alerts (within 1,500 km):** " + "; ".join(
             f"{d['name']} ({d['alert']} alert)" for d in nearby[:3])
-    sections.append(("❓ Why (likely cause)", text))
+    sections.append(("Why (likely cause)", text))
 
     # --- Why it matters ---
-    sections.append(("🌍 Why it matters", info["why"]))
+    sections.append(("Why it matters", info["why"]))
 
     # --- Market impact ---
     lines = []
@@ -201,7 +201,7 @@ def explain_chokepoint(name, status, traffic, prices, changes, headlines, disast
                 line += f", **{describe_move(since)} since traffic started falling**"
         lines.append(line)
     if lines:
-        sections.append(("📈 Market impact", "\n".join(lines) + (
+        sections.append(("Market impact", "\n".join(lines) + (
             "\n\n*Markets move for many reasons at once. A move at the same time as a shipping "
             "disruption is a clue, not proof.*")))
     return sections
@@ -215,9 +215,9 @@ def explain_disaster(disaster, statuses, headlines):
     text = (f"**{d['alert']} alert**, {timing}.\n\n**Where:** {d['country'][:300]}")
     if d["severity"]:
         text += f"\n\n**Severity:** {d['severity']}"
-    sections.append(("📊 What's happening", text))
+    sections.append(("What's happening", text))
 
-    sections.append(("❓ Why it happens", DISASTER_EFFECTS.get(d["type"], "A natural hazard event.")))
+    sections.append(("Why it happens", DISASTER_EFFECTS.get(d["type"], "A natural hazard event.")))
 
     # What it could affect: nearby chokepoints + type-specific markets
     effects = []
@@ -241,10 +241,10 @@ def explain_disaster(disaster, statuses, headlines):
         effects.append("- Watch for damage to factories, ports and power in the affected area.")
     if not effects:
         effects.append("- No major shipping chokepoints nearby. The impact is mostly local.")
-    sections.append(("🌍 What it could affect", "\n".join(effects)))
+    sections.append(("What it could affect", "\n".join(effects)))
 
     if headlines:
-        sections.append(("📰 Latest news", "\n".join(
+        sections.append(("Latest news", "\n".join(
             f"- [{h['title'].replace('[', '(').replace(']', ')')}]({h['link']}) ({h['date']})"
             for h in headlines[:5])))
     return sections

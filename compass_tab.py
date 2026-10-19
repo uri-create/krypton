@@ -1,5 +1,5 @@
 # compass_tab.py
-# 🧭 The Market Compass page, kept simple:
+# The Market Compass page, kept simple:
 #   1. Today's reading (Bullish / Neutral / Bearish) with a gauge
 #   2. What usually happens next (3 numbers from 18 years of history)
 #   3. Why: the six signals, one line each
@@ -27,18 +27,18 @@ def _hero(compass, name):
     left = (score + 100) / 2
     st.markdown(
         f"<div class='hero' style='--accent:{info['colour']}'>"
-        f"<div class='hero-kicker'>🧭 THE US STOCK MARKET (S&amp;P 500) RIGHT NOW</div>"
-        f"<div class='hero-main'><span class='hero-icon'>{info['icon']}</span>"
+        f"<div class='hero-kicker'>THE US STOCK MARKET (S&amp;P 500) RIGHT NOW</div>"
+        f"<div class='hero-main'>"
         f"<span class='hero-reading' style='color:{info['colour']}'>{name}</span></div>"
         f"<div class='hero-meaning'>{info['meaning']}</div>"
         f"<div class='gauge'><div class='gauge-mark' style='left:{left:.1f}%;background:{info['colour']};"
         f"box-shadow:0 0 14px {info['colour']}'></div></div>"
-        "<div class='gauge-labels'><span>🐻 Bearish</span><span>⚖️ Neutral</span><span>🐂 Bullish</span></div>"
+        "<div class='gauge-labels'><span>Bearish</span><span>Neutral</span><span>Bullish</span></div>"
         f"<div class='hero-foot'>Score {score:+.0f} out of ±100 · market closes up to {compass['date']:%d %b %Y}</div>"
         "</div>", unsafe_allow_html=True)
     with st.expander("What do Bullish, Neutral and Bearish mean?"):
         for n, r in READINGS.items():
-            st.markdown(f"{r['icon']} **{n}** (score {r['range']}): {r['meaning']}")
+            st.markdown(f"**{n}** (score {r['range']}): {r['meaning']}")
         st.caption("The score is the average of six market signals (shown below). It describes the market right now; "
                    "it's not a promise about the future and not advice to buy or sell.")
 
@@ -46,7 +46,7 @@ def _hero(compass, name):
 def _next_month(compass, name):
     test = compass["test"]
     odds, normal = test["by_reading"][name], test["all"]
-    subtitle("🔮 What usually happens next")
+    subtitle("What usually happens next")
     how_to_read(f"What the S&P 500 actually did over the following month, in the {odds['weeks']} past weeks that "
                 f"were also {name} (since {test['start'].year}).")
     stat_cards([
@@ -62,26 +62,26 @@ def _next_month(compass, name):
 
 
 def _signals(compass, name):
-    subtitle(f"🔍 Why it's {name.lower()}: the six signals")
+    subtitle(f"Why it's {name.lower()}: the six signals")
     rows = []
     for signal, info in SIGNALS.items():
         value = compass["today"][signal]
         if value > 0.15:
-            pill, tone, text = "🐂 Bullish", "good", info["up"]
+            pill, tone, text = "Bullish", "good", info["up"]
         elif value < -0.15:
-            pill, tone, text = "🐻 Bearish", "bad", info["down"]
+            pill, tone, text = "Bearish", "bad", info["down"]
         else:
-            pill, tone, text = "⚖️ Neutral", "", "Near its normal level, not pushing either way."
-        rows.append(f"<div class='signal-row'><span class='signal-name'>{info['icon']} {signal}</span>"
+            pill, tone, text = "Neutral", "", "Near its normal level, not pushing either way."
+        rows.append(f"<div class='signal-row'><span class='signal-name'>{signal}</span>"
                     f"<span class='stat-delta {tone}'>{pill}</span><span class='signal-text'>{text}</span></div>")
     st.markdown(f"<div class='signal-list'>{''.join(rows)}</div>", unsafe_allow_html=True)
     with st.expander("What does each signal measure?"):
         for signal, info in SIGNALS.items():
-            st.markdown(f"{info['icon']} **{signal}:** {info['what']}")
+            st.markdown(f"**{signal}:** {info['what']}")
 
 
 def _chart(compass):
-    subtitle("📜 The last two years")
+    subtitle("The last two years")
     how_to_read("The S&P 500's price, coloured by what the Compass said at the time: "
                 "<b style='color:#3ddc84'>green</b> = Bullish, <b style='color:#ffb000'>amber</b> = Neutral, "
                 "<b style='color:#ff2a3d'>red</b> = Bearish. The red stretches line up with the rough patches.")
@@ -104,7 +104,7 @@ def _chart(compass):
 
 
 def _sectors(compass):
-    subtitle("🧩 Leading sectors this month")
+    subtitle("Leading sectors this month")
     how_to_read("Green bars rose this month, red fell. If safe sectors (Utilities, Everyday goods, Healthcare) lead, "
                 "investors are being careful.")
     sectors = sorted(compass["sectors"].items(), key=lambda kv: kv[1]["month"])
@@ -124,7 +124,7 @@ def _sectors(compass):
 
 
 def _world(state):
-    subtitle("🌍 Serious world events")
+    subtitle("Serious world events")
     how_to_read("From Krypton's live map. They're not part of the score, but they can move the stocks they touch.")
     serious = sorted([e for e in state["events"] if e["severity"] in ("Critical", "High")],
                      key=lambda e: -SEVERITY[e["severity"]]["rank"])
@@ -138,20 +138,20 @@ def _world(state):
 
 
 def _trust(compass):
-    subtitle("🎯 Can you trust it?")
+    subtitle("Can you trust it?")
     test = compass["test"]
     bull, bear = test["by_reading"].get("Bullish"), test["by_reading"].get("Bearish")
     good, bad = st.columns(2)
     if bull and bear:
-        good.success(f"**✅ Good at spotting rough months.** After a Bearish reading, a big drop came "
+        good.success(f"**Good at spotting rough months.** After a Bearish reading, a big drop came "
                      f"{bear['dip10']:.0f}% of the time, vs {bull['dip10']:.0f}% after a Bullish one.")
-        bad.warning(f"**❌ Not good at calling up or down.** Even after Bearish readings the market rose "
+        bad.warning(f"**Not good at calling up or down.** Even after Bearish readings the market rose "
                     f"{bear['up']:.0f}% of the time, because it often bounces back.")
     with st.expander("See the full numbers"):
         rows = ["<table class='ktable'><tr><th>Reading</th><th>Weeks</th><th>Higher a month later</th>"
                 "<th>Average move</th><th>Usual range</th><th>Fell 10%+</th></tr>"]
         for name, s in list(test["by_reading"].items()) + [("All weeks", test["all"])]:
-            icon = READINGS[name]["icon"] if name in READINGS else "📊"
+            icon = READINGS[name]["icon"] if name in READINGS else ""
             rows.append(f"<tr><td>{icon} {name}</td><td>{s['weeks']}</td><td>{s['up']:.0f}%</td>"
                         f"<td>{s['avg']:+.1f}%</td><td>{s['low']:+.1f}% to {s['high']:+.1f}%</td>"
                         f"<td>{s['dip10']:.0f}%</td></tr>")
@@ -159,7 +159,7 @@ def _trust(compass):
         st.caption(f"Every week from {test['start']:%b %Y} to {test['end']:%b %Y}, using only the data available "
                    f"on each day. Options traders currently expect a move of about ±{compass['month_move']:.1f}% "
                    f"over the next month (from the VIX, {compass['vix']:.0f} today).")
-    with st.expander("📊 Krypton's event arrows: track record"):
+    with st.expander("Krypton's event arrows: track record"):
         from tabs_extra import track_record_tab
         track_record_tab()
 

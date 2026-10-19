@@ -1,5 +1,5 @@
 # analyst.py
-# "🤖 Ask the analyst": chat with an AI that can see everything Krypton sees right now
+# "Ask the analyst": chat with an AI that can see everything Krypton sees right now
 # (events, severities, affected markets, your portfolio, the track record) and can also
 # search the web for the latest news. Needs an Anthropic API key.
 

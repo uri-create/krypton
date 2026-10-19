@@ -1,7 +1,7 @@
 # app.py
 # Krypton: a stock market guide built on a live global situation monitor.
-# 🧭 Market Compass (today's market weather + honest odds), 🌍 a live globe of shipping, air cargo,
-# weather, military activity and disasters, 📈 ~120 markets, your portfolio, alerts and an AI analyst.
+# Market Compass (today's market weather + honest odds), a live globe of shipping, air cargo,
+# weather, military activity and disasters, ~120 markets, your portfolio, alerts and an AI analyst.
 #
 # Run it FROM THIS FOLDER (so the dark theme in .streamlit/config.toml loads):
 #   cd C:\Users\uri\Projects\WorldWatch
@@ -28,7 +28,7 @@ from panels import (SEVERITY, line_chart, pie_chart, render_chokepoint, render_c
 from storage import MISCONFIGURED
 from tabs_extra import analyst_tab, briefing_tab, portfolio_tab
 
-st.set_page_config(page_title="Krypton", page_icon="🔺", layout="wide")
+st.set_page_config(page_title="Krypton", layout="wide")
 st.session_state["_chart_n"] = 0  # chart ID counter, see panels.chart_key
 
 # KRYPTON palette: near-black, blood red, cold grey
@@ -122,7 +122,7 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
         position: relative; overflow: hidden; }}
 .hud::before {{ content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
                 background: linear-gradient(180deg, var(--red), transparent); }}
-.hud-title {{ font-size: 1.75rem; font-weight: 700; letter-spacing: 0.32em;
+.hud-title {{ font-size: 1.6rem; font-weight: 700; letter-spacing: 0.32em;
               background: linear-gradient(90deg, #ffffff 0%, #ffb3ba 45%, var(--red) 100%);
               -webkit-background-clip: text; background-clip: text; color: transparent;
               filter: drop-shadow(0 0 18px rgba(255, 42, 61, 0.35)); }}
@@ -223,11 +223,13 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .heat-head {{ display: flex; justify-content: space-between; align-items: center; color: var(--text);
               font-weight: 600; font-size: 0.9rem; margin-bottom: 10px; }}
 .heat-head .stat-delta {{ margin-top: 0; }}
-.heat-tiles {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }}
+.heat-tiles {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }}
 .tile {{ border-radius: 10px; padding: 9px 10px; display: flex; flex-direction: column; gap: 3px; min-height: 52px;
          border: 1px solid rgba(255, 255, 255, 0.05); transition: transform 0.15s, box-shadow 0.15s; cursor: default; }}
 .tile:hover {{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5); }}
-.tile-name {{ color: #e9e9ee; font-size: 0.72rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis;
+.tile-ticker {{ color: #fff; font-weight: 700; font-size: 0.8rem; letter-spacing: 0.03em; }}
+.heat-other {{ background: rgba(255, 255, 255, 0.015); }}
+.tile-name {{ color: #d0d0d8; font-size: 0.7rem; line-height: 1.2; overflow: hidden; text-overflow: ellipsis;
               display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }}
 .tile-move {{ color: #fff; font-weight: 700; font-size: 0.92rem; font-variant-numeric: tabular-nums;
               font-family: 'Space Grotesk', 'Inter', sans-serif; }}
@@ -295,7 +297,7 @@ def cached_headlines(topic):
 # LOG IN (nothing below this runs until someone is logged in)
 # ===========================================================================
 if MISCONFIGURED:  # online without the real database: lock everything (see storage.py)
-    st.error("🔧 Krypton is being set up and will be back shortly.")
+    st.error("Krypton is being set up and will be back shortly.")
     # For the owner: which secret NAMES the website can see (never their values), to fix setup mistakes
     try:
         names = sorted(st.secrets.keys())
@@ -306,7 +308,7 @@ if MISCONFIGURED:  # online without the real database: lock everything (see stor
     st.stop()
 user = login_gate()
 handle_return(user)  # just came back from paying on Stripe?
-if st.session_state.get("pro_page"):  # a 🔒 button was pressed: show the Krypton Pro page instead
+if st.session_state.get("pro_page"):  # a button was pressed: show the Krypton Pro page instead
     pro_page(user)
     st.stop()
 
@@ -333,7 +335,7 @@ if state.get("compass"):
     _name = reading(state["compass"]["today"]["Score"])
     _colour = READINGS[_name]["colour"]
     reading_html = (f'<div class="hud-pill" style="color:{_colour};border-color:{_colour}55;background:{_colour}14">'
-                    f'{READINGS[_name]["icon"]} Market is {_name.lower()}</div>')
+                    f'Market is {_name.lower()}</div>')
 st.markdown(f"""
 <div class="hud">
   <div class="hud-title">KRYPTON</div>
@@ -341,7 +343,7 @@ st.markdown(f"""
   <div class="hud-tag">CLASSIFIED // MARKET INTELLIGENCE</div>
   <div class="hud-right">
     {reading_html}
-    <div class="hud-user">👤 {html.escape(user['username'])}{' · admin' if user['is_admin'] else ''}</div>
+    <div class="hud-user">{html.escape(user['username'])}{' · admin' if user['is_admin'] else ''}</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -350,8 +352,8 @@ st.caption("For learning and research only. Not financial advice.")
 # ===========================================================================
 # MAIN TABS
 # ===========================================================================
-main_tabs = st.tabs(["🧭 Market Compass", "🌍 World map", "📈 Markets", "🧬 Teams", "💼 My portfolio",
-                     "🤖 Ask the analyst", "📰 Daily briefing", "👤 Account"])
+main_tabs = st.tabs(["Market Compass", "World map", "Markets", "Clusters", "My portfolio",
+                     "Ask the analyst", "Daily briefing", "Account"])
 
 
 def as_fragment(tab_function, chart_base):
@@ -415,11 +417,11 @@ def map_and_panel():
                             key=order.index, default="Normal")
                 worst = "Normal" if worst == "Unusually busy" else worst
                 sea.append({"coords": [list(p) for p in info["points"]], "colour": STATUS_STYLE[worst]["colour"],
-                            "dashed": worst == "Disrupted", "label": f"🛳️ {route} · {worst}"})
+                            "dashed": worst == "Disrupted", "label": f"{route} · {worst}"})
         if show_routes and "Air cargo" in shown:
             for a, b in AIR_ROUTES:
                 air_arcs.append({"startLat": AIR_HUBS[a]["lat"], "startLng": AIR_HUBS[a]["lon"],
-                                 "endLat": AIR_HUBS[b]["lat"], "endLng": AIR_HUBS[b]["lon"], "label": f"✈️ {a} ⇄ {b}"})
+                                 "endLat": AIR_HUBS[b]["lat"], "endLng": AIR_HUBS[b]["lon"], "label": f"{a} ⇄ {b}"})
         picked = krypton_globe(globe_events, sea, air_arcs, height=640, key="globe")
         if picked and picked.get("t") != st.session_state.get("last_globe_click"):
             st.session_state["last_globe_click"] = picked["t"]
@@ -460,7 +462,7 @@ def map_and_panel():
 def shipping_trends():
     """Shipping details under the map. Changing the dropdown redraws only this part."""
     st.session_state["_chart_n"] = 5_000
-    st.markdown("### 🚢 Shipping routes")
+    st.markdown("### Shipping routes")
     problem_first = sorted(statuses, key=lambda s: list(STATUS_STYLE).index(s["Status"]))
     left, right = st.columns([3, 2])
     with left:
@@ -482,17 +484,17 @@ with main_tabs[1]:
     # BRIEFING
     # ===========================================================================
     with st.container(border=True):
-        st.markdown("### 📋 Situation briefing")
+        st.markdown("### Situation briefing")
         lines = build_briefing(statuses, changes, disasters)
         hot = [f"**{n}**" for n, level in conflict_levels.items() if level == "High"]
         if hot:
-            lines.insert(0, f"🛡️ **High military activity:** {', '.join(hot)}.")
+            lines.insert(0, f"**High military activity:** {', '.join(hot)}.")
         quiet_hubs = [n for n in AIR_HUBS if air_hub_status(n, air, air_history)[0] == "Unusually quiet"]
         if quiet_hubs:
-            lines.append(f"✈️ **Unusually quiet cargo hubs:** {', '.join(quiet_hubs)}.")
+            lines.append(f"**Unusually quiet cargo hubs:** {', '.join(quiet_hubs)}.")
         bad_weather = [e["tooltip"].split(" · ")[1].title() for e in events if e["id"][0] == "rough"]
         if bad_weather:
-            lines.append(f"☁️ **Severe weather right now at:** {', '.join(bad_weather)}.")
+            lines.append(f"**Severe weather right now at:** {', '.join(bad_weather)}.")
         for line in lines:
             st.markdown(f"- {line}")
         st.caption("Sources: IMF PortWatch (ships, ~1 week delay), OpenSky (live aircraft), Open-Meteo (weather), "

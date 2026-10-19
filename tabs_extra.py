@@ -1,6 +1,6 @@
 # tabs_extra.py
 # The main tabs beside the live map:
-#   💼 My portfolio · 📊 Track record (shown inside the Compass) · 🤖 Ask the analyst · 📰 Daily briefing
+#   My portfolio · Track record (shown inside the Compass) · Ask the analyst · Daily briefing
 
 import datetime as dt
 import html
@@ -25,7 +25,7 @@ def ai_ready(user):
 
 
 def ai_off(user, key, label):
-    """A locked AI feature: a 🔒 button that opens the Krypton Pro page."""
+    """A locked AI feature: a button that opens the Krypton Pro page."""
     allowed, reason = ai_access(user)
     if not allowed:
         locked_message(user, reason, key, label)
@@ -40,7 +40,7 @@ def badge(severity):
 
 
 # ===========================================================================
-# 💼 MY PORTFOLIO
+# MY PORTFOLIO
 # ===========================================================================
 @st.cache_data(ttl=3600, show_spinner=False)
 def cached_holding_prices(tickers):
@@ -89,7 +89,7 @@ def holding_summary(h, links):
     if ups or downs:
         lean = "up ▲" if ups > downs else "down ▼" if downs > ups else "both ways"
         lines.append(f"**Where the links point:** {lean} ({ups} up, {downs} down). Not a prediction: "
-                     "Krypton's rules haven't beaten chance historically (see 📊 Track record).")
+                     "Krypton's rules haven't beaten chance historically (see Track record).")
     return lines
 
 
@@ -97,23 +97,23 @@ def render_holding(h, links):
     """Summary first, then tidy details under subtitles."""
     t = h["ticker"]
     with st.container(border=True):
-        st.markdown("**📌 Summary**")
+        st.markdown("**Summary**")
         st.markdown("\n".join(f"- {line}" for line in holding_summary(h, links)))
 
     named = [l for l in links if l["link"] == "Named"]
     if named:
-        subtitle("🎯 Named in Krypton research")
+        subtitle("Named in Krypton research")
         for l in named:
             st.markdown(f"{badge(l['severity'])} &nbsp; **{html.escape(l['event'])}** ({l['category']}) · expected "
                         f"{l['direction']}", unsafe_allow_html=True)
-            lines = [f"- ✅ {fact}" for fact in l["facts"]] + [f"- 📚 *Research note:* {l['note']}"]
+            lines = [f"- {fact}" for fact in l["facts"]] + [f"- *Research note:* {l['note']}"]
             st.markdown("\n".join(lines))
 
     groups = {}
     for l in [x for x in links if x["link"] == "Measured"]:
         groups.setdefault(l["driver"], []).append(l)
     if groups:
-        subtitle("📈 Measured price links")
+        subtitle("Measured price links")
         st.caption("Correlation = how closely the daily price moves matched over the last ~12 months "
                    "(after removing normal stock-market swings). 1.00 = always together, 0 = unrelated.")
     for driver, items in groups.items():
@@ -131,19 +131,19 @@ def render_holding(h, links):
         for l in dated:
             if l["driver_move"] is not None and l["own_move"] is not None:
                 lines.append(f"- **{l['event']}** ({l['severity']}): since it began on {l['move_start']:%d %b %Y}, "
-                             f"{driver} **{l['driver_move']:+.1f}%**, {t} **{l['own_move']:+.1f}%** ✅")
+                             f"{driver} **{l['driver_move']:+.1f}%**, {t} **{l['own_move']:+.1f}%**")
             else:
                 lines.append(f"- **{l['event']}** ({l['severity']})")
         if undated:
             names = ", ".join(f"{l['event']} ({l['severity']})" for l in undated)
             first = undated[0]
             move = (f": over the last 30 days, {driver} **{first['driver_move']:+.1f}%**, {t} "
-                    f"**{first['own_move']:+.1f}%** ✅" if first["driver_move"] is not None
+                    f"**{first['own_move']:+.1f}%**" if first["driver_move"] is not None
                     and first["own_move"] is not None else "")
             lines.append(f"- **Ongoing, no exact start date:** {names}{move}")
         st.markdown("\n".join(lines))
 
-        with st.expander(f"📚 Why each event is linked to {driver} (research notes)"):
+        with st.expander(f"Why each event is linked to {driver} (research notes)"):
             st.markdown("\n".join(f"- **{l['event']}:** {l['note']}" for l in items))
 
 
@@ -176,7 +176,7 @@ def simple_watch_lines(h, links, limit=3):
 
 
 def portfolio_tab(state, user):
-    st.markdown("### 💼 My portfolio")
+    st.markdown("### My portfolio")
     st.caption("Add the stocks, funds or commodities you own (or want to watch). For each one, Krypton shows "
                "which live events affect it and why. Saved only on this computer.")
     store = user["store"]
@@ -185,7 +185,7 @@ def portfolio_tab(state, user):
     with st.form("add_holding", clear_on_submit=True):
         c1, c2 = st.columns([3, 1])
         ticker = c1.text_input("Ticker symbol", placeholder="e.g. AAPL, XOM, TSM, SPY, KO, BZ=F", max_chars=15)
-        added = c2.form_submit_button("➕ Add", type="primary")
+        added = c2.form_submit_button("Add", type="primary")
     if added and ticker.strip():
         if not re.fullmatch(r"[A-Za-z0-9.=^\-]{1,15}", ticker.strip()):
             st.error("Tickers only use letters, numbers and . = ^ - (e.g. AAPL, BRK-B, BZ=F).")
@@ -214,7 +214,7 @@ def portfolio_tab(state, user):
     market_week = week_move(state["prices"]["S&P 500"]) if "S&P 500" in state["prices"] else 0.0
     missing = [h for h in holdings if load_today(store, h["ticker"]) is None and h["ticker"] in held]
     if missing and ai_ready(user):
-        if st.button(f"🧠 Find out why my stocks moved this week ({len(missing)} to check)", type="primary"):
+        if st.button(f"Find out why my stocks moved this week ({len(missing)} to check)", type="primary"):
             progress = st.progress(0.0, text="Searching the news...")
             for i, h in enumerate(missing, 1):
                 if not ai_access(user)[0]:
@@ -230,7 +230,7 @@ def portfolio_tab(state, user):
             st.rerun()
 
     elif missing and not ai_access(user)[0]:
-        locked_message(user, ai_access(user)[1], "portfolio", "🧠 Find out why my stocks moved this week")
+        locked_message(user, ai_access(user)[1], "portfolio", "Find out why my stocks moved this week")
 
     # ---- One short card per stock
     for h in holdings:
@@ -252,16 +252,16 @@ def portfolio_tab(state, user):
 
             # Why it moved (real news, found by the AI)
             saved = load_today(store, h["ticker"])
-            st.markdown("<div class='section'>🧠 Why it moved</div>", unsafe_allow_html=True)
+            st.markdown("<div class='section'>Why it moved</div>", unsafe_allow_html=True)
             if saved:
                 st.markdown(saved["text"])
             elif not ai_ready(user):
-                st.caption("🔒 Krypton Pro shows the real news behind this move.")
+                st.caption("Krypton Pro shows the real news behind this move.")
             else:
-                st.caption("Press the 🧠 button above to look up the real news.")
+                st.caption("Press the button above to look up the real news.")
 
             # What in the world could affect it (max 3 short lines, plain English)
-            st.markdown("<div class='section'>🌍 World events to watch</div>", unsafe_allow_html=True)
+            st.markdown("<div class='section'>World events to watch</div>", unsafe_allow_html=True)
             st.markdown("\n".join(f"- {line}" for line in simple_watch_lines(h, links)))
 
             with st.expander("More details"):
@@ -270,13 +270,13 @@ def portfolio_tab(state, user):
                                explain="The price at the end of each trading day over the last year.")
                 if links:
                     render_holding(h, links)
-                if st.button("🗑️ Remove from portfolio", key=f"remove_{h['ticker']}"):
+                if st.button("Remove from portfolio", key=f"remove_{h['ticker']}"):
                     save_portfolio(store, [x for x in holdings if x["ticker"] != h["ticker"]])
                     st.rerun()
 
 
 # ===========================================================================
-# 📊 TRACK RECORD
+# TRACK RECORD
 # ===========================================================================
 MIN_EVENTS = 5  # need at least this many SEPARATE past events before judging an event type
 
@@ -288,12 +288,12 @@ def luck_range(base, n):
 
 def verdict(hit, base, predictions, events):
     if events < MIN_EVENTS:
-        return "⚪", "Too few events to judge"
+        return "", "Too few events to judge"
     if hit - base > luck_range(base, predictions):
-        return "✅", "Better than guessing"
+        return "", "Better than guessing"
     if base - hit > luck_range(base, predictions):
-        return "❌", "Worse than guessing"
-    return "➖", "Same as guessing"
+        return "", "Worse than guessing"
+    return "", "Same as guessing"
 
 
 def score_bar(label, score, colour):
@@ -305,12 +305,12 @@ def score_bar(label, score, colour):
 
 
 def track_record_tab():
-    st.markdown("### 📊 Can you trust Krypton's arrows?")
+    st.markdown("### Can you trust Krypton's arrows?")
     st.markdown("Krypton shows **▲ up** and **▼ down** arrows for stocks linked to world events. "
                 "We checked if those arrows were actually right in the past.")
     results = load_results()
     if not results:
-        if st.button("▶️ Run the check (about 1–2 minutes)", type="primary"):
+        if st.button("▶Run the check (about 1–2 minutes)", type="primary"):
             status = st.empty()
             with st.spinner("Checking against history..."):
                 run_backtest(progress=lambda msg: status.info(msg))
@@ -325,9 +325,9 @@ def track_record_tab():
 
     # ---------- The answer, in one line ----------
     if beats:
-        st.success(f"## ✅ Yes, a bit.\nKrypton's arrows were right more often than guessing.")
+        st.success(f"## Yes, a bit.\nKrypton's arrows were right more often than guessing.")
     else:
-        st.error("## ❌ Not for predicting prices.\nKrypton's arrows were right about as often as flipping a coin.")
+        st.error("## Not for predicting prices.\nKrypton's arrows were right about as often as flipping a coin.")
 
     # ---------- Side by side ----------
     st.markdown(score_bar("Krypton's arrows", right, "#ff2a3d") + score_bar("Just guessing", coin, "#9a9aa4"),
@@ -338,19 +338,19 @@ def track_record_tab():
     # ---------- What it means ----------
     good, bad = st.columns(2)
     with good:
-        st.markdown("#### ✅ Krypton IS good for")
+        st.markdown("#### Krypton IS good for")
         st.markdown("- Seeing **what's happening** around the world, live\n"
                     "- Knowing **why** it's happening\n"
                     "- Knowing **which stocks are exposed** to it")
     with bad:
-        st.markdown("#### ❌ Krypton is NOT good for")
+        st.markdown("#### Krypton is NOT good for")
         st.markdown("- **Predicting** if a stock will go up or down\n"
                     "- Deciding what to **buy or sell**\n"
                     "- Beating the market")
     st.caption("Why? By the time news shows up in free data, big investors have usually already traded on it.")
 
     # ---------- For the curious ----------
-    with st.expander("🔎 For the curious: full details"):
+    with st.expander("For the curious: full details"):
         grouped = table.groupby("rule").agg(predictions=("hit", "size"), hit=("hit", "mean"),
                                             base=("base_rate", "mean"))
         grouped["events"] = table[["rule", "event", "date"]].drop_duplicates().groupby("rule").size()
@@ -372,14 +372,14 @@ def track_record_tab():
         st.dataframe(pd.DataFrame(results["events"]).sort_values("date", ascending=False)
                      [["date", "kind", "name", "detail"]], hide_index=True, width="stretch")
         st.caption(f"Last checked: {results['run']}.")
-        if st.button("🔄 Run the check again (about 1–2 minutes)"):
+        if st.button("Run the check again (about 1–2 minutes)"):
             with st.spinner("Checking against history..."):
                 run_backtest(progress=lambda msg: None)
             st.rerun()
 
 
 # ===========================================================================
-# 🤖 ASK THE ANALYST
+# ASK THE ANALYST
 # ===========================================================================
 EXAMPLES = ["Why is traffic through the Strait of Hormuz down so much, and what happens next?",
             "Which of my holdings is most at risk this week, and why?",
@@ -388,7 +388,7 @@ EXAMPLES = ["Why is traffic through the Strait of Hormuz down so much, and what 
 
 
 def analyst_tab(state, user):
-    st.markdown("### 🤖 Ask the analyst")
+    st.markdown("### Ask the analyst")
     st.caption("Chat with an AI analyst that sees everything on Krypton right now (events, severity, affected "
                "markets, your portfolio, the track record) and searches the web for the latest news.")
     if not ai_ready(user):
@@ -425,13 +425,13 @@ def analyst_tab(state, user):
 
 
 # ===========================================================================
-# 📰 DAILY BRIEFING
+# DAILY BRIEFING
 # ===========================================================================
 def briefing_tab(state, user):
-    st.markdown("### 📰 Daily briefing")
+    st.markdown("### Daily briefing")
     st.caption("A 2-minute summary: today's market reading, the most serious world situations, your portfolio "
                "and the week's biggest market moves. Press the button to write today's.")
-    if st.button("📝 Write today's briefing now", type="primary"):
+    if st.button("Write today's briefing now", type="primary"):
         write_briefing(state, user["store"])
         st.success("Written.")
     files = list_briefings(user["store"])
