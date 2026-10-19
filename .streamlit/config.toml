@@ -1,12 +1,12 @@
-# Dark "classified research terminal" theme for Krypton.
+# Dark, sleek "sinister glass" theme for Krypton.
 # Streamlit reads this automatically when you run the app from this folder.
 [theme]
 base = "dark"
 primaryColor = "#ff2a3d"              # blood red accent
-backgroundColor = "#020203"           # near-black
-secondaryBackgroundColor = "#0c0607"  # panels
-textColor = "#c9c9d1"                 # cold grey text
-font = "monospace"
+backgroundColor = "#060608"           # near-black
+secondaryBackgroundColor = "#141015"  # panels
+textColor = "#d6d6de"                 # cold grey text
+font = "sans serif"
 
 # ---- Safety settings for running Krypton on the public internet ----
 [client]

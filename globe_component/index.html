@@ -8,7 +8,7 @@
      Clicking an icon sends its id back to Python so the side panel can explain it. -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css">
 <style>
-  html, body { margin: 0; background: #020203; overflow: hidden; font-family: 'JetBrains Mono', monospace; }
+  html, body { margin: 0; background: #060608; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
   #globe { width: 100%; }
   .kwrap { pointer-events: auto; }
   .kicon { display: block; font-size: 19px; cursor: pointer; transform: translate(-50%, -50%);
@@ -18,20 +18,21 @@
   .pulse { animation: pulse 1.3s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: 0.45; } }
   #tip { position: absolute; pointer-events: none; display: none; z-index: 10; max-width: 340px;
-         background: rgba(6, 2, 3, 0.94); border: 1px solid #ff2a3d; border-left: 3px solid #ff2a3d;
-         color: #e8e8ee; font-size: 11px; padding: 6px 9px; letter-spacing: 0.03em;
-         box-shadow: 0 0 18px rgba(255, 42, 61, 0.35); }
-  #hint { position: absolute; bottom: 10px; left: 12px; color: #ff2a3d; font-size: 10px;
-          letter-spacing: 0.22em; opacity: 0.85; pointer-events: none; }
-  #corner { position: absolute; top: 10px; right: 12px; color: #ff2a3d; font-size: 10px;
-            letter-spacing: 0.25em; border: 1px solid #ff2a3d; padding: 2px 7px; pointer-events: none; }
+         background: rgba(14, 8, 10, 0.92); border: 1px solid rgba(255, 42, 61, 0.45); border-radius: 10px;
+         color: #e9e9ee; font-size: 12px; padding: 8px 11px; line-height: 1.4;
+         backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 18px rgba(255, 42, 61, 0.2); }
+  #hint { position: absolute; bottom: 12px; left: 14px; color: #8a8a96; font-size: 11px;
+          letter-spacing: 0.08em; pointer-events: none; }
+  #corner { position: absolute; top: 12px; right: 14px; color: #ff8a95; font-size: 10px; font-weight: 600;
+            letter-spacing: 0.18em; border: 1px solid rgba(255, 42, 61, 0.35); border-radius: 999px;
+            background: rgba(255, 42, 61, 0.08); padding: 4px 10px; pointer-events: none; }
 </style>
 </head>
 <body>
 <div id="globe"></div>
 <div id="tip"></div>
-<div id="hint">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK AN ICON</div>
-<div id="corner">KRYPTON // ORBITAL VIEW</div>
+<div id="hint">Drag to rotate · scroll to zoom · click an icon</div>
+<div id="corner">ORBITAL VIEW</div>
 
 <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.2/dist/globe.gl.min.js"></script>
 <script>

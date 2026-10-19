@@ -81,7 +81,7 @@ def line_chart(series, title, y_label, colour=CYAN, marker=None, marker_label=No
     figure.update_layout(
         title=dict(text=title, font=dict(size=13, color="#c9c9d1")), template="plotly_dark", height=height,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#050203", showlegend=False,
-        margin=dict(l=10, r=10, t=40, b=10), font=dict(family="JetBrains Mono, monospace", color="#7d93aa"),
+        margin=dict(l=10, r=10, t=40, b=10), font=dict(family="Inter, sans-serif", color="#8a8a96"),
         xaxis=dict(gridcolor=GRID), yaxis=dict(title=y_label, gridcolor=GRID),
     )
     st.plotly_chart(figure, width="stretch", key=chart_key("line"))
@@ -106,7 +106,7 @@ def pie_chart(labels, values, title, height=330, colours=None, note=None):
     figure.update_layout(title=dict(text=title, font=dict(size=13, color="#c9c9d1")), template="plotly_dark",
                          height=height, paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=10, t=40, b=10),
                          legend=dict(font=dict(size=11), orientation="h", x=0, y=-0.05, yanchor="top"),
-                         font=dict(family="JetBrains Mono, monospace"))
+                         font=dict(family="Inter, sans-serif"))
     st.plotly_chart(figure, width="stretch", key=chart_key("pie"))
     if note:
         st.caption(note)
@@ -582,6 +582,12 @@ HAZARD_BASICS = {
 }
 
 
+@st.cache_data(ttl=6 * 3600, show_spinner=False)
+def cached_causes(d):
+    """35 years of climate records for a disaster: downloaded once, then kept for 6 hours."""
+    return measured_causes(d)
+
+
 def render_disaster(d, prices, changes, headlines):
     severity = disaster_severity(d)
     icon = "🌋" if d["type"] in ("Earthquake", "Volcano") else "☁️"
@@ -590,7 +596,7 @@ def render_disaster(d, prices, changes, headlines):
     title = d["name"] if len(d["name"]) <= 60 else f"{d['type']}: {region or 'multiple countries'} ({len(countries)} countries)"
     header(title, f"{icon} {d['type']} · {d['alert']} alert", severity)
     with st.spinner("Checking 35 years of climate records..."):
-        causes_measured, chart = measured_causes(d)
+        causes_measured, chart = cached_causes(d)
 
     tabs = st.tabs(["📊 Overview", "❓ Why", "📈 Markets", "📰 News", "🔬 Deep research"])
     with tabs[0]:

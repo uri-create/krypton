@@ -21,7 +21,7 @@ from data_sources import (CHOKEPOINTS, get_air_history, get_air_traffic, get_cho
                           get_disasters, get_headlines, get_many_headlines, get_prices, get_weather)
 from explain_layers import air_hub_status, military_intensity, weather_flags
 from layers import AIR_HUBS, AIR_ROUTES, CATEGORIES, CONFLICT_ZONES, SEA_ROUTES
-from engine import build_state, safe  # noqa: E402
+from live_data import get_state
 from globe import krypton_globe, to_event_id
 from markets import SECTORS
 from tabs_extra import alerts_tab, analyst_tab, briefing_tab, portfolio_tab, track_record_tab
@@ -36,74 +36,124 @@ st.set_page_config(page_title="Krypton", page_icon="🔺", layout="wide")
 st.session_state["_chart_n"] = 0  # chart ID counter, see panels.chart_key
 
 # KRYPTON palette: near-black, blood red, cold grey
-CYAN, AMBER, RED, GRID = "#ff2a3d", "#ffb000", "#ff2a3d", "#2a1216"   # "CYAN" is now the red accent
+CYAN, AMBER, RED, GRID = "#ff2a3d", "#ffb000", "#ff2a3d", "#3a1a20"   # "CYAN" is now the red accent
 
 # ===========================================================================
-# LOOK & FEEL: classified research terminal. Black, blood red, glitch title, scanlines
+# LOOK & FEEL: sleek and sinister. Near-black glass, blood-red glow, clean modern type.
 # ===========================================================================
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&display=swap');
-html, body, [class*="css"], .stMarkdown, .stDataFrame {{ font-family: 'JetBrains Mono', monospace; }}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+:root {{
+  --bg: #060608; --glass: rgba(20, 12, 15, 0.62); --glass-strong: rgba(14, 8, 10, 0.85);
+  --line: rgba(255, 255, 255, 0.07); --line-red: rgba(255, 42, 61, 0.35);
+  --red: {RED}; --red-deep: #8b0a1a; --text: #e9e9ee; --muted: #8a8a96;
+}}
+html, body, [class*="css"], .stMarkdown, .stDataFrame, button, input, textarea, select {{
+  font-family: 'Inter', system-ui, sans-serif; }}
+h1, h2, h3, .hud-title, .panel-title {{ font-family: 'Space Grotesk', 'Inter', sans-serif; }}
 
-/* Almost-black background with a faint red grid and a dark red glow at the top */
+/* Deep black with soft crimson light bleeding in from the edges */
 .stApp {{
-  background-color: #020203;
+  background-color: var(--bg);
   background-image:
-    radial-gradient(ellipse at top, rgba(120,0,15,0.22) 0%, transparent 55%),
-    linear-gradient(rgba(255,42,61,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,42,61,0.03) 1px, transparent 1px);
-  background-size: 100% 100%, 46px 46px, 46px 46px;
+    radial-gradient(1200px 600px at 15% -10%, rgba(150, 0, 20, 0.28), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(90, 0, 12, 0.22), transparent 55%),
+    radial-gradient(800px 600px at 50% 120%, rgba(70, 0, 10, 0.25), transparent 60%);
+  background-attachment: fixed;
 }}
-/* Scanlines over everything (purely visual, doesn't block clicks) */
-.stApp::after {{
-  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,0.25) 0px, rgba(0,0,0,0.25) 1px,
-              transparent 1px, transparent 3px);
-}}
-h1, h2, h3 {{ text-transform: uppercase; letter-spacing: 0.16em; font-weight: 800 !important; }}
-h3 {{ color: #9a9aa4 !important; font-size: 0.9rem !important; border-bottom: 1px solid {GRID};
-      padding-bottom: 6px; }}
-h3::before {{ content: "▌"; color: {RED}; margin-right: 6px; }}
+.block-container {{ padding-top: 2rem; }}
+
+h1, h2 {{ font-weight: 700 !important; letter-spacing: -0.01em; color: var(--text) !important; }}
+h3 {{ color: var(--text) !important; font-size: 1.02rem !important; font-weight: 600 !important;
+      letter-spacing: 0.01em; display: flex; align-items: center; gap: 10px; margin-top: 0.6rem; }}
+h3::before {{ content: ""; width: 4px; height: 18px; border-radius: 4px; flex: none;
+              background: linear-gradient(180deg, var(--red), var(--red-deep));
+              box-shadow: 0 0 12px rgba(255, 42, 61, 0.6); }}
+
+/* Glass cards */
 [data-testid="stVerticalBlockBorderWrapper"] {{
-  border-color: {GRID} !important; background: rgba(8,4,5,0.94);
-  box-shadow: 0 0 22px rgba(255,42,61,0.05), inset 0 0 40px rgba(0,0,0,0.7);
+  border: 1px solid var(--line) !important; border-radius: 16px !important;
+  background: var(--glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: border-color 0.25s, box-shadow 0.25s;
 }}
-[data-testid="stMetricValue"] {{ color: #e8e8ee; }}
-a {{ color: #ff6b78 !important; }}
-button[kind="primary"] {{ background: #8b0f1f !important; border-color: {RED} !important; }}
+[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+  border-color: var(--line-red) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 28px rgba(255, 42, 61, 0.08); }}
+[data-testid="stMetric"] {{ background: rgba(255, 255, 255, 0.02); border: 1px solid var(--line);
+                            border-radius: 12px; padding: 10px 14px; }}
+[data-testid="stMetricValue"] {{ color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }}
+[data-testid="stMetricLabel"] {{ color: var(--muted); }}
+a {{ color: #ff6b78 !important; text-decoration: none; }}
+a:hover {{ color: #ff9aa3 !important; }}
+
+/* Buttons */
+.stButton button, .stLinkButton a, .stFormSubmitButton button {{
+  border-radius: 10px !important; border: 1px solid var(--line) !important; font-weight: 500;
+  transition: all 0.2s ease; }}
+.stButton button:hover, .stLinkButton a:hover {{ border-color: var(--line-red) !important;
+  box-shadow: 0 0 18px rgba(255, 42, 61, 0.15); }}
+button[kind="primary"], button[kind="primaryFormSubmit"], a[kind="primary"] {{
+  background: linear-gradient(135deg, #ff2a3d, #a10d22) !important; border: none !important;
+  color: #fff !important; box-shadow: 0 6px 22px rgba(255, 42, 61, 0.28); }}
+button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="primary"]:hover {{
+  box-shadow: 0 8px 30px rgba(255, 42, 61, 0.45); transform: translateY(-1px); }}
+
+/* Tabs: clean underline with a red glow */
+.stTabs [data-baseweb="tab-list"] {{ gap: 4px; border-bottom: 1px solid var(--line); }}
+.stTabs [data-baseweb="tab"] {{ border-radius: 10px 10px 0 0; padding: 8px 14px; color: var(--muted); }}
+.stTabs [aria-selected="true"] {{ color: var(--text) !important; background: rgba(255, 42, 61, 0.07); }}
+.stTabs [data-baseweb="tab-highlight"] {{ background: var(--red); box-shadow: 0 0 12px var(--red); }}
+
+/* Inputs */
+[data-baseweb="input"], [data-baseweb="select"] > div, [data-baseweb="textarea"] {{
+  border-radius: 10px !important; background: rgba(255, 255, 255, 0.03) !important; }}
+[data-testid="stExpander"] details {{ border-radius: 12px; border-color: var(--line); }}
+[data-testid="stAlert"] {{ border-radius: 12px; }}
 
 /* Top status bar */
-.hud {{ display:flex; flex-wrap:wrap; align-items:center; gap:30px; padding:12px 18px;
-        border:1px solid {GRID}; border-left:3px solid {RED}; background:rgba(6,2,3,0.96);
-        margin-bottom:6px; box-shadow: 0 0 30px rgba(255,42,61,0.10); }}
-.hud-title {{ font-size:1.7rem; font-weight:800; letter-spacing:0.38em; color:#f2f2f5; position:relative;
-              text-shadow: 2px 0 {RED}, -2px 0 rgba(0,200,255,0.35); animation: glitch 4s infinite; }}
-.hud-tag {{ font-size:0.62rem; color:{RED}; border:1px solid {RED}; padding:1px 6px; letter-spacing:0.25em; }}
-.hud-item {{ font-size:0.68rem; color:#77777f; letter-spacing:0.16em; text-transform:uppercase; }}
-.hud-item b {{ display:block; font-size:1.2rem; color:#e8e8ee; letter-spacing:0.05em; }}
-.live {{ color:{RED}; font-weight:800; letter-spacing:0.25em; }}
-.live::before {{ content:"●"; margin-right:6px; animation: blink 1.1s infinite; }}
-@keyframes blink {{ 50% {{ opacity: 0.1; }} }}
-@keyframes glitch {{
-  0%,92%,100% {{ text-shadow: 2px 0 {RED}, -2px 0 rgba(0,200,255,0.35); transform: none; }}
-  93% {{ text-shadow: -3px 0 {RED}, 3px 0 rgba(0,200,255,0.5); transform: translateX(2px) skewX(-8deg); }}
-  95% {{ text-shadow: 3px 0 {RED}, -3px 0 rgba(0,200,255,0.5); transform: translateX(-2px); opacity: 0.8; }}
-  97% {{ transform: none; opacity: 1; }}
-}}
+.hud {{ display: flex; flex-wrap: wrap; align-items: center; gap: 28px; padding: 18px 24px;
+        border: 1px solid var(--line); border-radius: 18px; background: var(--glass-strong);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); margin-bottom: 8px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(255, 42, 61, 0.07);
+        position: relative; overflow: hidden; }}
+.hud::before {{ content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+                background: linear-gradient(180deg, var(--red), transparent); }}
+.hud-title {{ font-size: 1.75rem; font-weight: 700; letter-spacing: 0.32em;
+              background: linear-gradient(90deg, #ffffff 0%, #ffb3ba 45%, var(--red) 100%);
+              -webkit-background-clip: text; background-clip: text; color: transparent;
+              filter: drop-shadow(0 0 18px rgba(255, 42, 61, 0.35)); }}
+.hud-tag {{ font-size: 0.66rem; color: #ff8a95; border: 1px solid var(--line-red); border-radius: 999px;
+            padding: 3px 10px; letter-spacing: 0.18em; background: rgba(255, 42, 61, 0.06); }}
+.hud-item {{ font-size: 0.68rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }}
+.hud-item b {{ display: block; font-size: 1.3rem; color: var(--text); letter-spacing: 0; font-weight: 600;
+               text-transform: none; margin-top: 2px; font-variant-numeric: tabular-nums; }}
+.live {{ display: inline-flex; align-items: center; gap: 8px; color: #ff8a95; font-size: 0.72rem;
+         font-weight: 600; letter-spacing: 0.2em; padding: 4px 11px; border-radius: 999px;
+         background: rgba(255, 42, 61, 0.1); border: 1px solid var(--line-red); }}
+.live::before {{ content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--red);
+                 animation: ping 1.6s infinite; }}
+@keyframes ping {{ 0% {{ box-shadow: 0 0 0 0 rgba(255, 42, 61, 0.7); }}
+                   70% {{ box-shadow: 0 0 0 9px rgba(255, 42, 61, 0); }}
+                   100% {{ box-shadow: 0 0 0 0 rgba(255, 42, 61, 0); }} }}
 
 /* Side panel */
-.panel-title {{ color:#f2f2f5; font-size:1.1rem; font-weight:800; letter-spacing:0.1em;
-                text-transform:uppercase; border-left:3px solid {RED}; padding-left:8px; }}
-.badge {{ display:inline-block; padding:2px 10px; border:1px solid; font-size:0.72rem;
-          letter-spacing:0.14em; text-transform:uppercase; margin-top:4px; }}
-.section {{ color:#8a2a35; font-size:0.72rem; letter-spacing:0.2em; text-transform:uppercase;
-            margin-top:14px; border-top:1px solid {GRID}; padding-top:8px; }}
-.section::before {{ content:"// "; }}
+.panel-title {{ color: var(--text); font-size: 1.2rem; font-weight: 700; letter-spacing: 0.01em;
+                border-left: 3px solid var(--red); padding-left: 10px; }}
+.badge {{ display: inline-block; padding: 3px 11px; border: 1px solid; border-radius: 999px;
+          font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }}
+.section {{ color: #ff8a95; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+            margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }}
+
+/* Slim dark scrollbars */
+::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+::-webkit-scrollbar-thumb {{ background: rgba(255, 42, 61, 0.25); border-radius: 8px; }}
+::-webkit-scrollbar-track {{ background: transparent; }}
 </style>
 """, unsafe_allow_html=True)
 
-# Styles INSIDE the map: raw glowing icons, pulsing alerts, darker tiles, vignette + scanlines
+# Styles INSIDE the flat map: glowing icons, pulsing alerts, soft vignette
 MAP_CSS = f"""
 <style>
 .ww-div {{ background: transparent !important; border: none !important; }}
@@ -112,20 +162,20 @@ MAP_CSS = f"""
 .ww-icon:hover {{ transform: scale(1.35); }}
 .ww-pulse {{ animation: wwpulse 1.4s ease-in-out infinite; }}
 @keyframes wwpulse {{ 0%,100% {{ opacity: 1; transform: scale(1); }} 50% {{ opacity: 0.45; transform: scale(1.25); }} }}
-.leaflet-tile-pane {{ filter: brightness(0.9) contrast(1.1) saturate(1.15); }}
-.leaflet-container {{ background: #020203 !important; }}
+.leaflet-tile-pane {{ filter: brightness(0.85) contrast(1.1) saturate(1.1); }}
+.leaflet-container {{ background: #060608 !important; border-radius: 16px; }}
 .leaflet-container::after {{
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 450;
-  background:
-    radial-gradient(ellipse at center, transparent 60%, rgba(10,0,2,0.6) 100%),
-    repeating-linear-gradient(0deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 1px, transparent 1px, transparent 3px);
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(10, 0, 2, 0.55) 100%);
 }}
-.leaflet-bar a {{ background: #0a0405 !important; color: {CYAN} !important; border-color: {GRID} !important; }}
-.leaflet-bar {{ border: 1px solid {GRID} !important; box-shadow: 0 0 10px rgba(255,42,61,0.2) !important; }}
-.leaflet-control-attribution {{ background: rgba(3,5,9,0.7) !important; color: #4f6475 !important; }}
-.leaflet-control-attribution a {{ color: #4f6475 !important; }}
-.leaflet-tooltip {{ background: #05080d; color: #c8d3e0; border: 1px solid {GRID};
-                    font-family: 'JetBrains Mono', monospace; font-size: 11px; box-shadow: 0 0 10px #000; }}
+.leaflet-bar a {{ background: #120a0c !important; color: {CYAN} !important; border-color: {GRID} !important; }}
+.leaflet-bar {{ border: 1px solid {GRID} !important; border-radius: 10px !important; overflow: hidden;
+                box-shadow: 0 0 10px rgba(255,42,61,0.2) !important; }}
+.leaflet-control-attribution {{ background: rgba(6,6,8,0.7) !important; color: #5a5a66 !important; }}
+.leaflet-control-attribution a {{ color: #5a5a66 !important; }}
+.leaflet-tooltip {{ background: rgba(14,8,10,0.95); color: #e9e9ee; border: 1px solid rgba(255,42,61,0.4);
+                    border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 12px;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.6); }}
 </style>
 """
 
@@ -134,36 +184,6 @@ MAP_CSS = f"""
 # DATA (cached so the page is fast and we're kind to the free servers)
 # ===========================================================================
 MINUTE, HOUR = 60, 3600
-
-@st.cache_data(ttl=6 * HOUR, show_spinner=False)
-def cached_traffic():
-    return get_chokepoint_traffic()
-
-@st.cache_data(ttl=HOUR, show_spinner=False)
-def cached_disasters():
-    return get_disasters()
-
-@st.cache_data(ttl=HOUR, show_spinner=False)
-def cached_prices():
-    return get_prices()
-
-@st.cache_data(ttl=15 * MINUTE, show_spinner=False)
-def cached_air():
-    try:
-        return get_air_traffic(AIR_HUBS, CONFLICT_ZONES)
-    except Exception:
-        return None
-
-@st.cache_data(ttl=30 * MINUTE, show_spinner=False)
-def cached_weather():
-    try:
-        return get_weather(CHOKEPOINTS, marine=True), get_weather(AIR_HUBS)
-    except Exception:
-        return {}, {}
-
-@st.cache_data(ttl=HOUR, show_spinner=False)
-def cached_conflict_news():
-    return get_many_headlines({name: zone["news"] for name, zone in CONFLICT_ZONES.items()})
 
 @st.cache_data(ttl=HOUR, show_spinner=False)
 def cached_headlines(topic):
@@ -222,18 +242,12 @@ if st.session_state.get("pro_page"):  # a 🔒 button was pressed: show the Kryp
 # ===========================================================================
 try:
     with st.spinner("Acquiring feeds: ships, aircraft, weather, conflicts, markets..."):
-        traffic = cached_traffic()
-        disasters = cached_disasters()
-        prices = cached_prices()
-        air = cached_air()
-        sea_weather, hub_weather = cached_weather()
-        conflict_news = cached_conflict_news()
+        state = get_state()  # instant after the first visit (see live_data.py)
 except Exception as error:
-    st.error(f"Couldn't load data: {error}. Try refreshing in a minute.")
+    st.error("Couldn't load the live data right now. Try refreshing in a minute.")
     st.stop()
-
-state = build_state({"traffic": traffic, "disasters": disasters, "prices": prices, "air": air,
-                     "sea_weather": sea_weather, "hub_weather": hub_weather, "conflict_news": conflict_news})
+traffic, disasters, prices, air = state["traffic"], state["disasters"], state["prices"], state["air"]
+sea_weather, hub_weather, conflict_news = state["sea_weather"], state["hub_weather"], state["conflict_news"]
 air_history, statuses, status_by_name = state["air_history"], state["statuses"], state["status_by_name"]
 changes, conflict_info, conflict_levels = state["changes"], state["conflict_info"], state["conflict_levels"]
 events = state["events"]
@@ -264,20 +278,35 @@ st.caption("For learning and research only. Not financial advice.")
 # ===========================================================================
 main_tabs = st.tabs(["🗺️ Live map", "💼 My portfolio", "🔔 Alerts", "📊 Track record", "🤖 Ask the analyst",
                      "📰 Daily briefing", "👤 Account"])
-with main_tabs[1]:
-    portfolio_tab(state, user)
-with main_tabs[2]:
-    alerts_tab(state, user)
-with main_tabs[3]:
-    track_record_tab()
-with main_tabs[4]:
-    analyst_tab(state, user)
-with main_tabs[5]:
-    briefing_tab(state, user)
-with main_tabs[6]:
-    account_tab(user)
 
-with main_tabs[0]:
+
+def as_fragment(tab_function, chart_base):
+    """Run a tab as a "fragment": clicking inside it redraws only that tab, not the whole app."""
+    @st.fragment
+    def run(*args):
+        st.session_state["_chart_n"] = chart_base  # chart IDs stay the same on every redraw (panels.chart_key)
+        tab_function(*args)
+    return run
+
+
+with main_tabs[1]:
+    as_fragment(portfolio_tab, 10_000)(state, user)
+with main_tabs[2]:
+    as_fragment(alerts_tab, 20_000)(state, user)
+with main_tabs[3]:
+    as_fragment(track_record_tab, 30_000)()
+with main_tabs[4]:
+    as_fragment(analyst_tab, 40_000)(state, user)
+with main_tabs[5]:
+    as_fragment(briefing_tab, 50_000)(state, user)
+with main_tabs[6]:
+    as_fragment(account_tab, 60_000)(user)
+
+
+@st.fragment
+def map_and_panel():
+    """The map/globe and the side panel. Clicking an icon redraws only this part."""
+    st.session_state["_chart_n"] = 0
     # ===========================================================================
     # LAYER FILTER (click to switch a category on/off)
     # ===========================================================================
@@ -321,7 +350,7 @@ with main_tabs[0]:
             if picked and picked.get("t") != st.session_state.get("last_globe_click"):
                 st.session_state["last_globe_click"] = picked["t"]
                 st.session_state["selected"] = to_event_id(picked["id"])
-                st.rerun()  # redraw the side panel for the clicked event
+                st.rerun(scope="fragment")  # redraw just the map + side panel for the clicked event
         else:
             world_map = folium.Map(
                 location=[24, 45], zoom_start=2, min_zoom=2, max_zoom=12, world_copy_jump=True,
@@ -402,26 +431,11 @@ with main_tabs[0]:
                 d = disasters[which]
                 render_disaster(d, prices, changes, cached_headlines(d["name"]))
 
-    # ===========================================================================
-    # BRIEFING
-    # ===========================================================================
-    with st.container(border=True):
-        st.markdown("### 📋 Situation briefing")
-        lines = build_briefing(statuses, changes, disasters)
-        hot = [f"**{n}**" for n, level in conflict_levels.items() if level == "High"]
-        if hot:
-            lines.insert(0, f"🛡️ **High military activity:** {', '.join(hot)}.")
-        quiet_hubs = [n for n in AIR_HUBS if air_hub_status(n, air, air_history)[0] == "Unusually quiet"]
-        if quiet_hubs:
-            lines.append(f"✈️ **Unusually quiet cargo hubs:** {', '.join(quiet_hubs)}.")
-        bad_weather = [e["tooltip"].split(" · ")[1].title() for e in events if e["id"][0] == "rough"]
-        if bad_weather:
-            lines.append(f"☁️ **Severe weather right now at:** {', '.join(bad_weather)}.")
-        for line in lines:
-            st.markdown(f"- {line}")
-        st.caption(f"Sources: IMF PortWatch (ships, ~1 week delay), OpenSky (live aircraft), Open-Meteo (weather), "
-                   f"GDACS (disasters), Google News (headlines), Yahoo Finance (prices).")
 
+@st.fragment
+def trends_and_markets():
+    """The charts and market tiles under the map. Changing a dropdown redraws only this part."""
+    st.session_state["_chart_n"] = 5_000
     # ===========================================================================
     # DETAIL SECTIONS
     # ===========================================================================
@@ -468,3 +482,27 @@ with main_tabs[0]:
                 cols[i % 4].metric(name, f"{c['Price']:,.2f}",
                                    delta=f"{month:+.1f}% this month" if month is not None else None,
                                    help=f"1 week: {describe_move(c['1 week (%)'])} · 1 year: {describe_move(c['1 year (%)'])}")
+
+
+with main_tabs[0]:
+    map_and_panel()
+    # ===========================================================================
+    # BRIEFING
+    # ===========================================================================
+    with st.container(border=True):
+        st.markdown("### 📋 Situation briefing")
+        lines = build_briefing(statuses, changes, disasters)
+        hot = [f"**{n}**" for n, level in conflict_levels.items() if level == "High"]
+        if hot:
+            lines.insert(0, f"🛡️ **High military activity:** {', '.join(hot)}.")
+        quiet_hubs = [n for n in AIR_HUBS if air_hub_status(n, air, air_history)[0] == "Unusually quiet"]
+        if quiet_hubs:
+            lines.append(f"✈️ **Unusually quiet cargo hubs:** {', '.join(quiet_hubs)}.")
+        bad_weather = [e["tooltip"].split(" · ")[1].title() for e in events if e["id"][0] == "rough"]
+        if bad_weather:
+            lines.append(f"☁️ **Severe weather right now at:** {', '.join(bad_weather)}.")
+        for line in lines:
+            st.markdown(f"- {line}")
+        st.caption(f"Sources: IMF PortWatch (ships, ~1 week delay), OpenSky (live aircraft), Open-Meteo (weather), "
+                   f"GDACS (disasters), Google News (headlines), Yahoo Finance (prices).")
+    trends_and_markets()

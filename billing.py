@@ -202,8 +202,9 @@ def locked_message(user, reason, key, label="Unlock with Krypton Pro"):
     if reason == "used_up":
         st.warning("You've used this month's AI allowance. It resets on the 1st of next month.")
         return
-    st.button(f"🔒 {label}", key=f"lock_{key}", on_click=open_pro_page,
-              help=f"Needs Krypton Pro ({PRICE_TEXT})")
+    if st.button(f"🔒 {label}", key=f"lock_{key}", help=f"Needs Krypton Pro ({PRICE_TEXT})"):
+        open_pro_page()
+        st.rerun()  # the whole app, not just this tab, so the Krypton Pro page appears
     st.caption(f"🔒 Krypton Pro feature ({PRICE_TEXT}). Press the button to see the plan.")
 
 
@@ -272,7 +273,10 @@ def plan_section(user):
     st.markdown("#### ⭐ Your plan")
     if user.get("is_admin"):
         st.caption(f"Owner: AI is always unlocked for you. AI spending this month: ${month_spend(user):.2f}.")
-        st.toggle("👀 Preview as a free user (see what non-paying users see)", key="preview_free")
+        now = st.toggle("👀 Preview as a free user (see what non-paying users see)", key="preview_free")
+        if now != st.session_state.get("_preview_applied", False):
+            st.session_state["_preview_applied"] = now
+            st.rerun()  # the whole app, so every tab locks/unlocks (this tab runs on its own otherwise)
         return
     pro = is_pro(user)
     if pro or user.get("ai_allowed"):
@@ -289,4 +293,6 @@ def plan_section(user):
                 st.link_button("Manage or cancel subscription", url)
         return
     st.markdown("**Free plan**")
-    st.button(f"⭐ See Krypton Pro ({PRICE_TEXT})", on_click=open_pro_page, type="primary", key="plan_pro")
+    if st.button(f"⭐ See Krypton Pro ({PRICE_TEXT})", type="primary", key="plan_pro"):
+        open_pro_page()
+        st.rerun()
