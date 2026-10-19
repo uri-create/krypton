@@ -8,6 +8,7 @@
 #   python -m streamlit run app.py
 
 import html
+import os
 
 import streamlit as st
 
@@ -31,7 +32,8 @@ from panels import (SEVERITY, line_chart, pie_chart, render_chokepoint, render_c
 from storage import MISCONFIGURED
 from tabs_extra import analyst_tab, briefing_tab, portfolio_tab
 
-st.set_page_config(page_title="Krypton", layout="wide")
+st.set_page_config(page_title="Krypton · Market Intelligence", layout="wide",
+                   page_icon=os.path.join(os.path.dirname(__file__), "assets", "icon.png"))
 st.session_state["_chart_n"] = 0  # chart ID counter, see panels.chart_key
 
 # KRYPTON palette: near-black, blood red, cold grey
@@ -360,6 +362,24 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover, a[kind="pr
 .swatches {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }}
 .swatch {{ width: 14px; height: 14px; border-radius: 50%; display: inline-block; }}
 .swatch-name {{ color: var(--muted); font-size: 0.82rem; margin-right: 10px; }}
+
+/* Phones: tighter spacing */
+@media (max-width: 640px) {{
+  .block-container {{ padding-left: 0.9rem; padding-right: 0.9rem; padding-top: 1rem; }}
+  .hud {{ gap: 12px; padding: 14px 16px; }}
+  .hud-title {{ font-size: 1.25rem; letter-spacing: 0.24em; }}
+  .hud-tag {{ display: none; }}
+  .hud-right {{ margin-left: 0; width: 100%; justify-content: space-between; }}
+  .hud-user {{ text-align: left; }}
+  .landing-hero {{ padding-top: 8px; }}
+  .landing-brand {{ margin-bottom: 18px; }}
+  .landing-section {{ margin-top: 36px; }}
+  .hero {{ padding: 18px; }}
+  .hero-reading {{ font-size: 2.1rem; }}
+  .research-name {{ font-size: 1.5rem; }}
+  .grid3 .tile {{ min-height: 78px; padding: 8px; }}
+  .stat-value {{ font-size: 1.6rem; }}
+}}
 
 /* Slim dark scrollbars */
 ::-webkit-scrollbar {{ width: 8px; height: 8px; }}

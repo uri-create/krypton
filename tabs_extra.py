@@ -325,7 +325,7 @@ def track_record_tab():
 
     # ---------- The answer, in one line ----------
     if beats:
-        st.success(f"## Yes, a bit.\nKrypton's arrows were right more often than guessing.")
+        st.success("## Yes, a bit.\nKrypton's arrows were right more often than guessing.")
     else:
         st.error("## Not for predicting prices.\nKrypton's arrows were right about as often as flipping a coin.")
 

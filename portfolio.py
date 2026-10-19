@@ -17,9 +17,6 @@
 #                (correlation ≥ 0.4, after removing general stock-market moves) with a market the event hits
 # Each user's portfolio is saved in their own private storage (see storage.py).
 
-import json
-import os
-
 import pandas as pd
 import yfinance as yf
 

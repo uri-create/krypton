@@ -37,7 +37,17 @@ def _weather():
 
 
 def _conflict_news():
-    return get_many_headlines({name: zone["news"] for name, zone in CONFLICT_ZONES.items()})
+    try:
+        return get_many_headlines({name: zone["news"] for name, zone in CONFLICT_ZONES.items()})
+    except Exception:  # news is helpful but not essential: the map still works without it
+        return {}
+
+
+def _disasters():
+    try:
+        return get_disasters()
+    except Exception:  # if the disaster service is down, show the rest of the map anyway
+        return []
 
 
 def _universe():
@@ -69,7 +79,7 @@ def _live_prices():
 # name: (download function, how old a copy may get before a fresh one is fetched)
 FEEDS = {
     "traffic": (get_chokepoint_traffic, 6 * HOUR),
-    "disasters": (get_disasters, HOUR),
+    "disasters": (_disasters, HOUR),
     "prices": (get_prices, HOUR),
     "air": (_air, 15 * MINUTE),
     "weather": (_weather, 30 * MINUTE),

@@ -16,7 +16,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from analysis import STATUS_STYLE, describe_move
+from analysis import STATUS_STYLE
 from climate import measured_causes
 from data_sources import CHOKEPOINTS, get_air_series
 from deep_research import api_key_available, load_saved, run_research
@@ -166,7 +166,7 @@ def confidence_note(causes, headlines, measured=True):
         share = len(causes[0][1]) / max(len(headlines), 1)
         level = "High" if share >= 0.6 else "Medium" if share >= 0.3 else "Low"
         why = f"{len(causes[0][1])} of {len(headlines)} recent headlines point to the same cause"
-    st.markdown(f"- **Measured numbers** (ships, aircraft, weather, prices): reliable, straight from the data sources."
+    st.markdown("- **Measured numbers** (ships, aircraft, weather, prices): reliable, straight from the data sources."
                 if measured else "")
     st.markdown(f"- **Cause:** confidence **{level}**, because {why}. For a fully researched, sourced explanation, "
                 "use the Deep research tab.")
@@ -695,7 +695,7 @@ def render_disaster(d, prices, changes, headlines):
                 st.markdown(f"**Measured strength:** {d['severity']}. Shallow quakes (under ~70 km deep) shake the "
                             "surface much harder than deep ones of the same magnitude.")
         subtitle("What the news says")
-        causes = news_themes(headlines)
+        news_themes(headlines)
         subtitle("How this kind of event works (short)")
         st.markdown(HAZARD_BASICS.get(d["type"], ""))
         subtitle("How sure is this?")

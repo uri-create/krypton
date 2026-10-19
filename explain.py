@@ -115,7 +115,6 @@ def price_change_since(prices, market, date):
 def explain_chokepoint(name, status, traffic, prices, changes, headlines, disasters):
     """Full report for one chokepoint, as a list of (section title, markdown text)."""
     info = CHOKEPOINTS[name]
-    style = STATUS_STYLE[status["Status"]]
     daily = traffic[traffic["chokepoint"] == name].set_index("date").sort_index()
     smooth = daily["ships"].rolling(7).mean().dropna()
     sections = []

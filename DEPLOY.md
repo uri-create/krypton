@@ -48,8 +48,8 @@ It should say `Copied 1 account(s)...`. Now your username, password and portfoli
 ---
 
 ## Good to know
-- **Your AI money:** AI is OFF for new users. You switch it on per person in 👤 Account, and each
-  of them gets max 25 AI requests a day. Set a monthly spending limit in the Anthropic console too.
+- **Your AI money:** AI features are for Krypton Pro subscribers (and you, the owner). Each subscriber
+  can use up to $5 of AI a month, and you can give someone a free Pro pass in Account. Set a monthly spending limit in the Anthropic console too.
 - **Sleeping:** free Streamlit apps go to sleep after ~12 hours with no visitors. The next visitor
   wakes it up (about 30 seconds). Accounts and data are safe in Neon the whole time.
 - **Some live data may be slower online:** free data sources sometimes limit requests from cloud
