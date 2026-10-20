@@ -44,7 +44,7 @@ python -m streamlit run app.py
 ```
 
 It works locally without any accounts or keys (AI features need an Anthropic API key). To put it online,
-see [DEPLOY.md](DEPLOY.md). Data licences for each source are summarised in [DATA_LICENCES.md](DATA_LICENCES.md).
+see [DEPLOY.md](DEPLOY.md); to serve many people at once, see [SCALING.md](SCALING.md). Data licences for each source are summarised in [DATA_LICENCES.md](DATA_LICENCES.md).
 
 ---
 

@@ -78,6 +78,17 @@ def stat_cards(cards, per_row=2):
                 f"<div class='stat-explain'>{card['explain']}</div></div>", unsafe_allow_html=True)
 
 
+HOVER = dict(bgcolor="#141015", bordercolor="#3a1a20", font=dict(color="#e9e9ee", family="Inter, sans-serif"))
+
+
+def dark(figure):
+    """Krypton's dark chart style. (Plotly's built-in "plotly_dark" template looks similar but makes every chart
+    about 10x slower to send to the browser, because Streamlit re-checks the whole template each time.)"""
+    # (Streamlit already colours chart axes for dark mode; only the hover box needs setting.)
+    figure.layout.hoverlabel = HOVER
+    return figure
+
+
 def chart_key(prefix):
     """Streamlit needs every chart to have its own ID. A counter (reset at the top of app.py on
     every run) gives each chart a unique, stable one."""
@@ -101,12 +112,12 @@ def line_chart(series, title, y_label, colour=CYAN, marker=None, marker_label=No
         figure.add_vline(x=pd.Timestamp(marker).timestamp() * 1000, line_dash="dash", line_color="#ff1744",
                          annotation_text=marker_label or "", annotation_font_color="#ff8a80")
     figure.update_layout(
-        title=dict(text=title, font=dict(size=13, color="#c9c9d1")), template="plotly_dark", height=height,
+        title=dict(text=title, font=dict(size=13, color="#c9c9d1")), height=height,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="#050203", showlegend=False,
         margin=dict(l=10, r=10, t=40, b=10), font=dict(family="Inter, sans-serif", color="#8a8a96"),
         xaxis=dict(gridcolor=GRID), yaxis=dict(title=y_label, gridcolor=GRID),
     )
-    st.plotly_chart(figure, width="stretch", key=chart_key("line"))
+    st.plotly_chart(dark(figure), width="stretch", key=chart_key("line"))
     if explain:
         st.caption(f"{explain}")
 
@@ -127,11 +138,11 @@ def pie_chart(labels, values, title, height=330, colours=None, note=None):
                               # whole-number percentages on the slices (e.g. "62%"), no long decimals
                               texttemplate="%{percent:.0%}", textfont=dict(size=13, color="#020203"),
                               hovertemplate="%{label}: %{percent:.0%}<extra></extra>"))
-    figure.update_layout(title=dict(text=title, font=dict(size=13, color="#c9c9d1")), template="plotly_dark",
+    figure.update_layout(title=dict(text=title, font=dict(size=13, color="#c9c9d1")),
                          height=height, paper_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=10, t=40, b=10),
                          legend=dict(font=dict(size=11), orientation="h", x=0, y=-0.05, yanchor="top"),
                          font=dict(family="Inter, sans-serif"))
-    st.plotly_chart(figure, width="stretch", key=chart_key("pie"))
+    st.plotly_chart(dark(figure), width="stretch", key=chart_key("pie"))
     if note:
         st.caption(f"{note}")
 

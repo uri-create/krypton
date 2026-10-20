@@ -39,7 +39,8 @@ def get_secret(name):
 
 # Streamlit Community Cloud runs apps from /mount/src/. There, the local-file fallback would be an
 # EMPTY, TEMPORARY database (wiped on every restart, and the first sign-up would become admin).
-ONLINE = os.path.abspath(__file__).replace("\\", "/").startswith("/mount/src/")
+ONLINE = (os.path.abspath(__file__).replace("\\", "/").startswith("/mount/src/")
+          or os.environ.get("KRYPTON_ONLINE") == "1")  # set by the Dockerfile for other hosts
 MISCONFIGURED = ONLINE and not get_secret("DATABASE_URL")  # online but the real database isn't set up
 
 
@@ -62,7 +63,15 @@ def _database_url():
     return "sqlite:///" + os.path.join(folder, "krypton.db").replace("\\", "/")
 
 
-engine = create_engine(_database_url(), pool_pre_ping=True)
+_url = _database_url()
+if _url.startswith("postgresql"):
+    # Many visitors at once: a small pool of reused connections per server, checked before use and renewed
+    # every 5 minutes (Neon closes idle ones). prepare_threshold=None keeps it compatible with Neon's
+    # connection pooler (the "-pooler" address), which several servers can share.
+    engine = create_engine(_url, pool_pre_ping=True, pool_size=5, max_overflow=15, pool_recycle=300,
+                           pool_timeout=20, connect_args={"prepare_threshold": None})
+else:
+    engine = create_engine(_url, pool_pre_ping=True)
 metadata = MetaData()
 
 users = Table(

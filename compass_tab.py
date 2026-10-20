@@ -15,7 +15,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from compass import LEAN, READINGS, SIGNALS, reading
-from panels import GRID, chart_key, how_to_read, stat_cards, subtitle
+from panels import GRID, chart_key, dark, how_to_read, stat_cards, subtitle
 from severity import SEVERITY
 
 FONT = dict(family="Inter, sans-serif", color="#8a8a96")
@@ -95,12 +95,12 @@ def _chart(compass):
         figure.add_trace(go.Scatter(x=sp.index, y=np.where(keep, sp.values, np.nan), mode="lines", name=label,
                                     line=dict(color=colour, width=2.6, shape="spline", smoothing=0.6),
                                     hovertemplate=f"%{{x|%d %b %Y}}: %{{y:,.0f}} ({label})<extra></extra>"))
-    figure.update_layout(template="plotly_dark", height=360, showlegend=False, paper_bgcolor="rgba(0,0,0,0)",
+    figure.update_layout(height=360, showlegend=False, paper_bgcolor="rgba(0,0,0,0)",
                          plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=10, t=10, b=10), font=FONT,
                          hovermode="x unified")
     figure.update_xaxes(gridcolor="rgba(255,255,255,0.04)")
     figure.update_yaxes(gridcolor="rgba(255,255,255,0.04)", title_text="S&P 500")
-    st.plotly_chart(figure, width="stretch", key=chart_key("compass_history"))
+    st.plotly_chart(dark(figure), width="stretch", key=chart_key("compass_history"))
 
 
 def _sectors(compass):
@@ -115,12 +115,12 @@ def _sectors(compass):
         marker=dict(color=["#3ddc84" if v["month"] >= 0 else "#ff2a3d" for _, v in sectors], cornerradius=6),
         text=[f"{v['month']:+.1f}%" for _, v in sectors], textposition="outside", cliponaxis=False,
         hovertemplate="%{y}: %{x:+.1f}% this month<extra></extra>"))
-    figure.update_layout(template="plotly_dark", height=330, paper_bgcolor="rgba(0,0,0,0)",
+    figure.update_layout(height=330, paper_bgcolor="rgba(0,0,0,0)",
                          plot_bgcolor="rgba(0,0,0,0)", margin=dict(l=10, r=50, t=10, b=10),
                          font=dict(family="Inter, sans-serif", color="#a3a3ae"),
                          xaxis=dict(gridcolor=GRID, showticklabels=False, zeroline=True, zerolinecolor="#55555f",
                                     range=[lo * 1.35 - 1.5, hi * 1.2 + 1.5]))
-    st.plotly_chart(figure, width="stretch", key=chart_key("compass_sectors"))
+    st.plotly_chart(dark(figure), width="stretch", key=chart_key("compass_sectors"))
 
 
 def _world(state):

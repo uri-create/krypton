@@ -1,0 +1,13 @@
+# Never copy private or local-only files into the container
+.git
+.github
+.streamlit/secrets.toml
+.env
+data/
+!data/backtest.json
+__pycache__/
+*.db
+*.pyc
+make_secrets.py
+make_stripe_secrets.py
+copy_to_cloud.sh

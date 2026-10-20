@@ -11,6 +11,7 @@
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 
 from data_sources import (CHOKEPOINTS, get_air_traffic, get_chokepoint_traffic, get_disasters, get_many_headlines,
                           get_prices, get_weather)
@@ -89,6 +90,9 @@ FEEDS = {
     "live_prices": (_live_prices, 15 * MINUTE),  # live prices for the 1,000 largest companies
 }
 OPTIONAL = {"live_prices"}  # not waited for on the very first load: added the moment it's ready
+FIRST_LOAD_LIMIT = 90       # seconds the very first visitor waits before slow sources are skipped for now
+STAND_INS = {"disasters": [], "air": None, "weather": ({}, {}), "conflict_news": {}, "compass": None,
+             "universe": None}  # what to show if a non-essential source is too slow on the first load
 
 
 _copies = {}        # name -> (time downloaded, data)
@@ -120,9 +124,21 @@ def get_all():
     with _first_load:  # if nothing is ready yet, download the missing feeds side by side
         missing = [name for name in FEEDS if name not in _copies and name not in OPTIONAL]
         if missing:
-            with ThreadPoolExecutor(max_workers=len(missing)) as pool:
-                for future in [pool.submit(_download, name) for name in missing]:
-                    future.result()
+            pool = ThreadPoolExecutor(max_workers=len(missing))
+            futures = {name: pool.submit(_download, name) for name in missing}
+            pool.shutdown(wait=False)
+            deadline = time.time() + FIRST_LOAD_LIMIT
+            for name, future in futures.items():
+                try:
+                    future.result(timeout=max(1, deadline - time.time()))
+                except FutureTimeout:
+                    # A free source that stops answering must not freeze the site: use an empty stand-in
+                    # for now (marked as very old, so it's retried on the next visit; the slow download
+                    # also replaces it by itself if it finishes later). Essential feeds can't be faked.
+                    if name not in STAND_INS:
+                        raise
+                    with _lock:
+                        _copies.setdefault(name, (0, STAND_INS[name]))
     now = time.time()
     with _lock:
         for name, (_, max_age) in FEEDS.items():

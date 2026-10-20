@@ -469,8 +469,12 @@ if st.session_state.get("sector_view"):  # "View all" was pressed: show that sec
 # ===========================================================================
 # MAIN TABS
 # ===========================================================================
+if "return_tab" in st.session_state:  # coming back from a full-page view: reopen that tab
+    st.session_state["main_tab"] = st.session_state.pop("return_tab")
+# Only the tab a visitor is looking at runs (on_change="rerun" + tab.open). Building all 9 tabs for every
+# visitor would cost the server about 9x more work per page.
 main_tabs = st.tabs(["Market Compass", "Universal search", "World map", "Markets", "Clusters", "My portfolio",
-                     "Ask the analyst", "Daily briefing", "Account"], default=st.session_state.pop("return_tab", None))
+                     "Ask the analyst", "Daily briefing", "Account"], key="main_tab", on_change="rerun")
 
 
 def as_fragment(tab_function, chart_base):
@@ -482,22 +486,30 @@ def as_fragment(tab_function, chart_base):
     return run
 
 
-with main_tabs[0]:
-    as_fragment(compass_tab, 70_000)(state, user)
-with main_tabs[1]:
-    as_fragment(research_tab, 90_000)(state, user)
-with main_tabs[3]:
-    as_fragment(markets_tab, 80_000)(state)
-with main_tabs[4]:
-    as_fragment(clusters_tab, 20_000)(state)
-with main_tabs[5]:
-    as_fragment(portfolio_tab, 10_000)(state, user)
-with main_tabs[6]:
-    as_fragment(analyst_tab, 40_000)(state, user)
-with main_tabs[7]:
-    as_fragment(briefing_tab, 50_000)(state, user)
-with main_tabs[8]:
-    as_fragment(account_tab, 60_000)(user)
+if main_tabs[0].open:
+    with main_tabs[0]:
+        as_fragment(compass_tab, 70_000)(state, user)
+if main_tabs[1].open:
+    with main_tabs[1]:
+        as_fragment(research_tab, 90_000)(state, user)
+if main_tabs[3].open:
+    with main_tabs[3]:
+        as_fragment(markets_tab, 80_000)(state)
+if main_tabs[4].open:
+    with main_tabs[4]:
+        as_fragment(clusters_tab, 20_000)(state)
+if main_tabs[5].open:
+    with main_tabs[5]:
+        as_fragment(portfolio_tab, 10_000)(state, user)
+if main_tabs[6].open:
+    with main_tabs[6]:
+        as_fragment(analyst_tab, 40_000)(state, user)
+if main_tabs[7].open:
+    with main_tabs[7]:
+        as_fragment(briefing_tab, 50_000)(state, user)
+if main_tabs[8].open:
+    with main_tabs[8]:
+        as_fragment(account_tab, 60_000)(user)
 
 
 @st.fragment
@@ -597,25 +609,26 @@ def shipping_trends():
                   note="Tankers carry oil & gas, container ships carry goods, bulk carriers carry grain, coal and ore.")
 
 
-with main_tabs[2]:
-    map_and_panel()
-    # ===========================================================================
-    # BRIEFING
-    # ===========================================================================
-    with st.container(border=True):
-        st.markdown("### Situation briefing")
-        lines = build_briefing(statuses, changes, disasters)
-        hot = [f"**{n}**" for n, level in conflict_levels.items() if level == "High"]
-        if hot:
-            lines.insert(0, f"**High military activity:** {', '.join(hot)}.")
-        quiet_hubs = [n for n in AIR_HUBS if air_hub_status(n, air, air_history)[0] == "Unusually quiet"]
-        if quiet_hubs:
-            lines.append(f"**Unusually quiet cargo hubs:** {', '.join(quiet_hubs)}.")
-        bad_weather = [e["tooltip"].split(" · ")[1].title() for e in events if e["id"][0] == "rough"]
-        if bad_weather:
-            lines.append(f"**Severe weather right now at:** {', '.join(bad_weather)}.")
-        for line in lines:
-            st.markdown(f"- {line}")
-        st.caption("Sources: IMF PortWatch (ships, ~1 week delay), OpenSky (live aircraft), Open-Meteo (weather), "
-                   "GDACS (disasters), Google News (headlines), Yahoo Finance (prices).")
-    shipping_trends()
+if main_tabs[2].open:
+    with main_tabs[2]:
+        map_and_panel()
+        # ===========================================================================
+        # BRIEFING
+        # ===========================================================================
+        with st.container(border=True):
+            st.markdown("### Situation briefing")
+            lines = build_briefing(statuses, changes, disasters)
+            hot = [f"**{n}**" for n, level in conflict_levels.items() if level == "High"]
+            if hot:
+                lines.insert(0, f"**High military activity:** {', '.join(hot)}.")
+            quiet_hubs = [n for n in AIR_HUBS if air_hub_status(n, air, air_history)[0] == "Unusually quiet"]
+            if quiet_hubs:
+                lines.append(f"**Unusually quiet cargo hubs:** {', '.join(quiet_hubs)}.")
+            bad_weather = [e["tooltip"].split(" · ")[1].title() for e in events if e["id"][0] == "rough"]
+            if bad_weather:
+                lines.append(f"**Severe weather right now at:** {', '.join(bad_weather)}.")
+            for line in lines:
+                st.markdown(f"- {line}")
+            st.caption("Sources: IMF PortWatch (ships, ~1 week delay), OpenSky (live aircraft), Open-Meteo (weather), "
+                       "GDACS (disasters), Google News (headlines), Yahoo Finance (prices).")
+        shipping_trends()
